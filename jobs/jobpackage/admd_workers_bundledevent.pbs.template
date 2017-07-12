@@ -1,0 +1,103 @@
+#!/bin/bash
+#PBS -A bip149
+#PBS -N admd
+#PBS -l nodes={nodes}
+#PBS -l walltime={hours}:{minutes}:00
+#PBS -e admd.stderr
+#PBS -o admd.stdout
+#PBS -l gres=atlas1
+
+
+echo -e "\n\nStarting an AdaptiveMD Job\n------------------------\n\n"
+
+
+#module switch PrgEnv-pgi/5.2.82 PrgEnv-gnu
+module load cudatoolkit
+# Make surewe're in submission directory
+cd $PBS_O_WORKDIR
+pwd
+ls -grth
+
+DB_HOSTNAME=`ip addr show ipogif0 | grep -Eo '(addr:)?([0-9]*\.){{3}}[0-9]*'`
+echo "Host address: $DB_HOSTNAME"
+echo "The workers will try to find MongoDB here"
+
+###############################################################
+#  AdaptiveMD Project Name of the run for workers
+#     must match project name in database
+###############################################################
+export RUNNAME={project_name}
+
+###############################################################
+#       Setting up compute Environment and Workers
+###############################################################
+# one node for mongod daemon
+#N_NODES = N_NODES - 1
+export N_NODES={nodes}
+export MACHINE_CORES={threads}
+export N_WORKERS={n_workers}
+export N_NUMA=2
+export N_MA=$N_NUMA
+echo "Number of workers: $N_WORKERS"
+#export OMP_NUM_THREADS=$(($N_NODES*$MACHINE_CORES/$N_WORKERS))
+export OMP_NUM_THREADS={w_threads}
+echo "Number of threads: $OMP_NUM_THREADS"
+export N_THREADS_WORKER=$OMP_NUM_THREADS
+export MPI_PER_NODE=$(($MACHINE_CORES/$N_THREADS_WORKER))
+export MPI_PER_MA=$((MPI_PER_NODE/$N_MA))
+export OPENMM_CPU_THREADS=$N_THREADS_WORKER
+
+###############################################################
+#       MONGODB CONNECTION
+###############################################################
+echo $ADMD_DB
+ls -grth $ADMD_DB
+which mongod
+mongod --config ${{ADMD_DB}}mongo.cfg --dbpath ${{ADMD_DB}}data/db/ &> mongo.$RUNNAME.log &
+MONGO_PID=$!
+echo $MONGO_PID
+ps aux | grep mongod
+echo "Scanning for mongo port... early"
+netstat -a | grep 27017
+sleep 20
+echo "Scanning for mongo port... later"
+netstat -a | grep 27017
+echo "Hopefully its a go..."
+
+###############################################################
+#       ADAPTIVEMD WORKERS
+# launch workers who write stdout/err to job directory
+###############################################################
+ADMD_SCRIPT=${{ADMD_JOBS}}scripts/{scriptname}
+
+## To use python 2 environment
+#yestitan#
+which python
+source activate py27
+which python
+echo "Initializing project"
+python $ADMD_SCRIPT $RUNNAME --init -P {platform} -s {w_threads} -p {prot} -m {all}
+
+echo "This is the adaptivemdworker used for the job"
+which adaptivemdworker
+echo "$N_WORKERS will be used,  $(($MPI_PER_MA*$N_MA)) per node with $OPENMM_CPU_THREADS simulation threads each"
+#noaprun#i=1
+#noaprun#while [ "$i" -le "$N_WORKERS" ]; do
+#noaprun#  echo "Launching worker $i"
+#noaprun#  adaptivemdworker $RUNNAME - --verbose > worker.$i.log &
+#noaprun#  i=$(($i+1))
+#noaprun#done
+
+#aprun# TODO: output is getting bundled to single log from all
+#aprun#       aprun ranks, separate these somehow
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS adaptivemdworker $RUNNAME --dbhost $DB_HOSTNAME --verbose > workers.log &
+#aprun -n$N_WORKERS -S$MPI_PER_MA -d$OPENMM_CPU_THREADS adaptivemdworker $RUNNAME --dbhost $DB_HOSTNAME --verbose > workers.log &
+
+echo "Done launching workers, now waiting"
+python $ADMD_SCRIPT $RUNNAME  -l {length} -x {n_ext} -M {n_model} -N {n_traj}
+
+echo "Going to shut down the database, event is finished"
+sleep 30
+kill $MONGO_PID
+
+wait

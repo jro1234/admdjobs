@@ -1,0 +1,126 @@
+#!/bin/bash
+#PBS -A bip149
+#PBS -N admd
+#PBS -l nodes={nodes}
+#PBS -l walltime={hours}:{minutes}:00
+#PBS -e admd.stderr
+#PBS -o admd.stdout
+#PBS -l gres=atlas1
+
+
+echo -e "\n\nStarting an AdaptiveMD Job\n------------------------\n\n"
+
+
+# on titan environment doesn't matter until inside aprun
+#module switch PrgEnv-pgi/5.2.82 PrgEnv-gnu
+#module load cudatoolkit
+# Make surewe're in submission directory
+cd $PBS_O_WORKDIR
+pwd
+#ls -grth
+
+
+###############################################################
+#  AdaptiveMD Project Name of the run for workers
+#     must match project name in database
+###############################################################
+RUNNAME={project_name}
+
+SCRIPT_NAME={strategy}
+ADMD_SCRIPT=${{ADMD_JOBS}}scripts/$SCRIPT_NAME
+
+###############################################################
+#       Setting up compute Environment and Workers
+###############################################################
+# one node for mongod daemon
+#N_NODES = N_NODES - 1
+export N_NODES={nodes}
+export N_WORKERS=$(($N_NODES-1))
+export OMP_NUM_THREADS={threads}
+export N_THREADS_WORKER=$(($OMP_NUM_THREADS-1))
+# later can calcultae with mpi workers
+#export N_THREADS_WORKER={w_threads}
+#export N_WORKERS={n_workers}
+export N_NUMA=2
+export N_MA=$N_NUMA
+export MPI_PER_NODE=$(($OMP_NUM_THREADS/$N_THREADS_WORKER))
+export MPI_PER_MA=$((MPI_PER_NODE/$N_MA))
+export OPENMM_CPU_THREADS=$N_THREADS_WORKER
+
+echo "Number of workers: $N_WORKERS"
+echo "Number of threads: $OMP_NUM_THREADS"
+
+## To use python 2 environment
+which python
+#source activate py27
+#which python
+
+
+###############################################################
+#       MONGODB CONNECTION
+###############################################################
+echo $ADMD_DB
+#ls -grth $ADMD_DB
+which mongod
+mkdir ${{ADMD_DB}}data/$RUNNAME.$N_WORKERS.db/
+aprun -n1 -N1 -d$OMP_NUM_THREADS ./startdb.sh $RUNNAME $N_WORKERS & MONGO_APID+=($!)
+echo $MONGO_APID
+
+# Must wait for mongo node to write hostname and start up
+sleep 20
+DB_HOSTNAME=`cat $N_WORKERS.hostname`
+echo "Mongo Node Hostname for run with $N_WORKERS AdaptiveMDWorkers: $DB_HOSTNAME"
+
+
+###############################################################
+#       ADAPTIVEMD PROJECT
+###############################################################
+echo "Initializing project"
+python $ADMD_SCRIPT $RUNNAME --init_only --dbhost $DB_HOSTNAME -P {platform} -s $N_THREADS_WORKER -p {prot} -m {all}
+
+###############################################################
+#       ADAPTIVEMD TASKS
+###############################################################
+python $ADMD_SCRIPT $RUNNAME --dbhost $DB_HOSTNAME  -l {length} -N {n_traj} -x {n_ext} -M {n_model} -w $N_WORKERS & pids+=($!)
+
+###############################################################
+#       ADAPTIVEMD WORKERS
+# launch workers who write stdout/err to job directory
+###############################################################
+echo "This is the adaptivemdworker used for the job"
+which adaptivemdworker
+echo "$N_WORKERS will be used,  $(($MPI_PER_MA*$N_MA)) per node with $OPENMM_CPU_THREADS simulation threads each"
+
+#aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS adaptivemdworker $RUNNAME --dbhost $DB_HOSTNAME --verbose > workers.$i.log & apids+=($!)
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS & apids+=($!)
+
+ ### ###############################################################
+ ### #       ADAPTIVEMD TASKS
+ ### # could go here too
+ ### ###############################################################
+ ### python $ADMD_SCRIPT $RUNNAME --dbhost $DB_HOSTNAME  -l {length} -N {n_traj} -x {n_ext} -M {n_model} -w $N_WORKERS & pids+=($!)
+
+
+###############################################################
+#       FINISHING TOUCHES
+# TODO get cleanup working again
+###############################################################
+
+echo "Done launching workers, now waiting"
+echo "Waiting for event scripts to terminate"
+for pid in "${{pids[@]}}"; do
+  wait "$pid"
+done
+
+echo "Waiting for workers to shut down"
+for apid in "${{apids[@]}}"; do
+  wait "$apid"
+done
+
+echo "Going to shut down the database, event is finished"
+sleep 30
+for mpid in "${{MONGO_PIDS[@]}}"; do
+  kill "$mpid"
+done
+
+wait
