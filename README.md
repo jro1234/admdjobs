@@ -62,9 +62,9 @@ components are specified, and set to be visible to compute nodes.
     * workers/   - working area for generating data
 
 
-## ADMD_Jobs
+## ADMD_JOBS
 
-This is where a user will typically roam while conducting work with
+The $ADMD_JOBS location is where a user will typically roam while conducting work with
 AdaptiveMD on an HPC resource. New run scripts may be created by the user and
 saved in `scripts/`. The jobmaker will run them using the `--strategy` option
 to specify a particular one. These scripts will coordinate details such as
