@@ -102,6 +102,7 @@ cd $INSTALL_ADMD_JOBS
 mkdir admd/
 cd admd
 cp -r $CWD/jobs/ ./
+mkdir jobs/
 echo "export ADMD_JOBS=${INSTALL_ADMD_JOBS}admd/jobs/" >> ~/.bashrc
 source ~/.bashrc
 cd $CWD
