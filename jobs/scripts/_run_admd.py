@@ -7,9 +7,73 @@ and project initializing function 'init_project'.
 '''
 
 from __future__ import print_function
+import random
+import time
 
 
-def strategy_pllMD(project, engine, n_run, n_ext, n_steps):#, n_model):
+def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
+                   fixedlength=True, longest=5000):#, n_model):
+
+    if fixedlength:
+        trajectories = project.new_trajectory(engine['pdb_file'],
+                                              n_steps, engine, n_run)
+    else:
+        variation = 0.2
+        randbreak = [int(n_steps*(1+(random.random()*variation*2-variation))/longest)*longest for _ in range(n_run)]
+        trajectories = list()
+        [trajectories.append(project.new_trajectory(engine['pdb_file'],rb, engine))
+         for rb in randbreak]
+
+    if not isinstance(trajectories, list):
+        trajectories = [trajectories]
+
+    tasks = [t.run() for t in trajectories]
+    project.queue(tasks)
+    print("Number of tasks: ", len(tasks))
+    print("Queued First Tasks")
+    print("Trajectory lengths were: {0}"
+          .format(', '.join([str(t.length) for t in trajectories])))
+
+    yield lambda: any([ta.is_done for ta in tasks])
+
+    print("Starting Trajectory Extensions")
+    c_ext = 0
+    while c_ext < n_ext:
+        c_ext += 1
+        print("Extension #{0}".format(c_ext))
+        extended = set()
+        tasks = list()
+
+        while len(extended) < n_run:
+            for t in project.trajectories:
+                if t.basename not in extended:
+                    if c_ext == n_ext:
+                        # undo misalignment from staggering
+                        # mostly for scaling, maybe can leave 
+                        # as a separate option for general use
+                        n_step = n_steps*(n_ext+1)-t.length
+                    else:
+                        n_step = n_steps
+
+                    task_ex = t.extend(n_step)
+                    extended.add(t.basename)
+                    project.queue(task_ex)
+                    tasks.append(task_ex)
+                    print("Queued Extension Task to {0} frames"
+                          .format(t.length+n_step))
+
+            time.sleep(1)
+
+        yield lambda: any([ta.is_done for ta in tasks])
+
+    yield [ta.is_done for ta in tasks]
+    print("Completed Simulation Length of {0} Frames"
+          .format(project.trajectories.one.length))
+
+    print("Simulation Event Finished")
+
+
+def strategy_pllMD_blocks(project, engine, n_run, n_ext, n_steps):#, n_model):
 
     trajectories = project.new_trajectory(engine['pdb_file'],
                                         n_steps, engine, n_run)

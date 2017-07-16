@@ -42,8 +42,9 @@ if __name__ == '__main__':
         print(strategy_pllMD)
         engine = project.generators['openmm-2']
         start_time = time.time()
+        print("TIMER Project add event {0:.5f}", time.time())
         project.add_event(strategy_pllMD(project, engine, args.n_traj,
-                                         args.n_ext, args.length))#, n_model))
+                                         args.n_ext, args.length, args.fixedlength))#, n_model))
 
         #tasks#trajectories = project.new_trajectory(engine['pdb_file'],
         #tasks#                                      n_steps, engine, n_runs)
@@ -59,6 +60,7 @@ if __name__ == '__main__':
         project.workers.all.execute('shutdown')
 
         end_time = time.time()
+        print("TIMER Project end event {0:.5f}", time.time())
         elapsed_time = end_time - start_time
         print("Time for event completion with {0} workers is {1} seconds"
               .format(args.n_workers, elapsed_time))

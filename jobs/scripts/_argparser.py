@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env/ python
 
 
 from argparse import ArgumentParser
@@ -34,6 +34,10 @@ def argparser():
     parser.add_argument("-l","--length",
         help="Length of trajectory segments in frames",
         type=int, default=100)
+
+    parser.add_argument("-f","--fixedlength",
+        help="Default randomizes traj length, flag to fix to n_steps",
+        action='store_true')
 
     parser.add_argument("-p","--protein-stride", dest="prot",
         help="Stride between saved protein structure frames",
