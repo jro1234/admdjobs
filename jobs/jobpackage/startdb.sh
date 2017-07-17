@@ -28,7 +28,7 @@ if [ $N_WORKERS -gt 400 ]; then
   # which will take effect and prevent the remaining
   # worker connections... be careful to avoid waste
   maxconns=$((40+2*$N_WORKERS))
-  ulim=`echo "$maxconns*1.2" | bc`
+  ulim=`echo "$maxconns*1.3" | bc`
   ulimit -n ${ulim%.*}
 else
   # mongodb default for typical file ulimit of 1024
