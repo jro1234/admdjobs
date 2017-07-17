@@ -19,11 +19,15 @@ mkdir ${ADMD_DB}data/$DB_HOSTNAME/
 echo -e "net:\n   unixDomainSocket:\n      pathPrefix: ${ADMD_DB}data/$DB_HOSTNAME/\n   bindIp: 0.0.0.0" > ${ADMD_DB}mongo.$RUNNAME-$N_WORKERS-$DB_HOSTNAME.cfg 
 
 if [ $N_WORKERS -gt 400 ]; then
-  # TODO mongod decides to use default based on utime max files- fix
+  # this may read higher than the system hard limit,
+  # which will take effect and prevent the remaining
+  # worker connections
   maxconns=$((40+2*$N_WORKERS))
+  ulim=`echo "$maxconns*1.2" | bc`
+  ulimit -n ${ulim%.*}
 else
   # mongodb default
-  maxconns=1000
+  maxconns=819
 fi
 
 # Making database for each mongod
