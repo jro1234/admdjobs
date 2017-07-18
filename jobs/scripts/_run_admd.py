@@ -14,14 +14,22 @@ import time
 def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
                    fixedlength=True, longest=5000):#, n_model):
 
+    print("Using fixed length? ", fixedlength)
+
     if fixedlength:
         trajectories = project.new_trajectory(engine['pdb_file'],
                                               n_steps, engine, n_run)
     else:
         variation = 0.2
-        randbreak = [int(n_steps*(1+(random.random()*variation*2-variation))/longest)*longest for _ in range(n_run)]
+        rand = [random.random()*variation*2-variation
+                for _ in range(n_run)]
+
+        randbreak = [int(n_steps*(1+r)/longest)*longest
+                     for r in rand]
+
         trajectories = list()
-        [trajectories.append(project.new_trajectory(engine['pdb_file'],rb, engine))
+        [trajectories.append(project.new_trajectory(
+            engine['pdb_file'],rb, engine))
          for rb in randbreak]
 
     if not isinstance(trajectories, list):
@@ -34,7 +42,7 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
     print("Trajectory lengths were: {0}"
           .format(', '.join([str(t.length) for t in trajectories])))
 
-    yield lambda: any([ta.is_done for ta in tasks])
+    yield lambda: any([ta.is_done() for ta in tasks])
 
     print("Starting Trajectory Extensions")
     c_ext = 0
@@ -64,13 +72,55 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
 
             time.sleep(1)
 
-        yield lambda: any([ta.is_done for ta in tasks])
+        yield lambda: any([ta.is_done() for ta in tasks])
 
+    # we should not arrive here until the final round
+    # of extensions are queued and at least one of them
+    # is complete
+    print("First Task is done")
+    def all_done():
+        '''
+        This function scavenges project for idle workers.
+        They are shut down if idle to flush the output.
+        Returns function that returns True when all workers
+        have been shut down.
+        Many assumptions are made that will break down easily
+        catastrophic ones- 
+        n workers = n trajectories
+        '''
+
+        for ta in project.tasks:
+            # if function used before final extensiontasks
+            # this condition can be satisfied and result
+            # in shutdown...
+            if ta.state == 'success':
+                if ta.description.find('TrajectoryExtensionTask') >= 0:
+                    # offers little additional protection
+                    # since there is lag between task
+                    # completion and acquisition
+                    if ta.worker.n_tasks == 0:
+                        if ta.worker.state == 'running':
+                             print("Worker shutdown at ", time.time())
+                             ta.worker.execute('shutdown')
+
+            elif ta.state == 'fail':
+                # what to do?
+                pass
+
+        return all([ ta.worker.state == 'down'
+                     for ta in tasks
+                     if ta.state != 'dummy'])
+
+    print("Waiting for all done")
+    yield lambda: all_done()
+
+    # redundant for simple event model here
     yield [ta.is_done for ta in tasks]
     print("Completed Simulation Length of {0} Frames"
           .format(project.trajectories.one.length))
 
     print("Simulation Event Finished")
+
 
 
 def strategy_pllMD_blocks(project, engine, n_run, n_ext, n_steps):#, n_model):
