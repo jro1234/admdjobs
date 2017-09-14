@@ -10,7 +10,7 @@ from __future__ import print_function
 
 # Import custom adaptivemd init & strategy functions
 from _argparser import argparser
-from _run_admd import init_project, strategy_pllMD
+from __run_admd import init_project, strategy_pllMD
 from sys import exit
 import time
 
@@ -27,6 +27,7 @@ if __name__ == '__main__':
     print("Worker threads: {0}".format(args.w_threads))
     print(args)
     project = init_project(args.project_name,
+                           args.system_name,
                            args.all,
                            args.prot,
                            args.platform,
@@ -40,11 +41,30 @@ if __name__ == '__main__':
     else:
         print("Adding event to project from function:")
         print(strategy_pllMD)
-        engine = project.generators['openmm-2']
+
+        if  args.longts:
+            ext = '-5'
+        else:
+            ext = '-2'
+
+        nm_engine = 'openmm' + ext
+        nm_modeller_1 = 'pyemma-ca' + ext
+        nm_modeller_2 = 'pyemma-ionic' + ext
+
+        engine = project.generators[nm_engine]
+
+        if args.model:
+            modellers = list()
+            modellers.append(project.generators[nm_modeller_1])
+            modellers.append(project.generators[nm_modeller_2])
+        else:
+            modellers = None
+
         start_time = time.time()
         print("TIMER Project add event {0:.5f}", time.time())
         project.add_event(strategy_pllMD(project, engine, args.n_traj,
-                                         args.n_ext, args.length, args.fixedlength))#, n_model))
+                                         args.n_ext, args.length, modellers,
+                                         args.fixedlength, args.all))
 
         #tasks#trajectories = project.new_trajectory(engine['pdb_file'],
         #tasks#                                      n_steps, engine, n_runs)
@@ -57,6 +77,8 @@ if __name__ == '__main__':
         print("Triggering project")
         project.wait_until(project.events_done)
         print("Shutting Down Workers")
+        # NOTE that all_done function in _run_admd.py should
+        #      have these guys already shut down
         project.workers.all.execute('shutdown')
 
         end_time = time.time()

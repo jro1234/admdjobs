@@ -23,19 +23,22 @@ echo "$DB_HOSTNAME" > $N_WORKERS.hostname
 mkdir ${ADMD_DB}data/$DB_HOSTNAME/
 echo -e "net:\n   unixDomainSocket:\n      pathPrefix: ${ADMD_DB}data/$DB_HOSTNAME/\n   bindIp: 0.0.0.0" > ${ADMD_DB}mongo.$RUNNAME-$N_WORKERS-$DB_HOSTNAME.cfg 
 
-if [ $N_WORKERS -gt 400 ]; then
-  # this may evaluate to higher than the system hard limit,
-  # which will take effect and prevent the remaining
-  # worker connections... be careful to avoid waste
-  maxconns=$((40+2*$N_WORKERS))
-  ulim=`echo "$maxconns*1.3" | bc`
-  ulimit -n ${ulim%.*}
-else
-  # mongodb default for typical file ulimit of 1024
-  maxconns=819
-fi
+#if [ $N_WORKERS -gt 400 ]; then
+#  # this may evaluate to higher than the system hard limit,
+#  # which will take effect and prevent the remaining
+#  # worker connections... be careful to avoid waste
+#  maxconns=$((40+2*$N_WORKERS))
+#  ulim=`echo "$maxconns*1.5" | bc`
+#  ulimit -n ${ulim%.*}
+#else
+#  # mongodb default for typical file ulimit of 1024
+#  maxconns=819
+#fi
+
+echo "Hopefully ulimit is 32k..."
+ulimit -n
 
 # Making database (ie directory) for this mongod instance
 mkdir ${ADMD_DB}data/$RUNNAME.$N_WORKERS.db/
-numactl --interleave=all mongod --maxConns $maxconns --config ${ADMD_DB}mongo.$RUNNAME-$N_WORKERS-$DB_HOSTNAME.cfg --dbpath ${ADMD_DB}data/$RUNNAME.$N_WORKERS.db/ &> mongo.$RUNNAME.$N_WORKERS.log
+numactl --interleave=all mongod --config ${ADMD_DB}mongo.$RUNNAME-$N_WORKERS-$DB_HOSTNAME.cfg --dbpath ${ADMD_DB}data/$RUNNAME.$N_WORKERS.db/ &> mongo.$RUNNAME.$N_WORKERS.log
 

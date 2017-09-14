@@ -11,6 +11,9 @@ def argparser():
     parser.add_argument("project_name",
         help="Name of project")
 
+    parser.add_argument("system_name",
+        help="Name of system")
+
     parser.add_argument("--init_only",
         help="Only initialize project",
         action="store_true")
@@ -19,9 +22,9 @@ def argparser():
         help="Number of trajectories to create",
         type=int, default=16)
 
-    parser.add_argument("-M","--n-model", dest="n_model",
-        help="Number of models to create",
-        type=int, default=1)
+    parser.add_argument("-M","--model", dest="model",
+        help="Create a model each iteration",
+        action='store_true')
 
     parser.add_argument("-w","--n-workers", dest="n_workers",
         help="Number of workers in job",
@@ -30,6 +33,10 @@ def argparser():
     parser.add_argument("-x","--n-extension", dest="n_ext",
         help="Number of extensions to trajectories",
         type=int, default=1)
+
+    parser.add_argument("--longts", dest="longts",
+        help="Flag for 5fs timesteps",
+        action='store_true')
 
     parser.add_argument("-l","--length",
         help="Length of trajectory segments in frames",

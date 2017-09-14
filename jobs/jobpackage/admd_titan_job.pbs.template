@@ -14,6 +14,7 @@ echo -e "\n\nStarting an AdaptiveMD Job\n------------------------\n\n"
 # on titan environment doesn't matter until inside aprun
 #module switch PrgEnv-pgi/5.2.82 PrgEnv-gnu
 #module load cudatoolkit
+export APRUN_XFER_LIMITS=1
 # Make surewe're in submission directory
 cd $PBS_O_WORKDIR
 pwd
@@ -63,7 +64,7 @@ echo $ADMD_DB
 #ls -grth $ADMD_DB
 which mongod
 mkdir ${{ADMD_DB}}data/$RUNNAME.$N_WORKERS.db/
-aprun -n1 -N1 -d$OMP_NUM_THREADS ./startdb.sh $RUNNAME $N_WORKERS & MONGO_APID+=($!)
+aprun -n1 -N1 -d$OMP_NUM_THREADS ./startdb.sh $RUNNAME $N_WORKERS & MONGO_APID=$!
 echo $MONGO_APID
 
 # Must wait for mongo node to write hostname and start up
@@ -76,12 +77,12 @@ echo "Mongo Node Hostname for run with $N_WORKERS AdaptiveMDWorkers: $DB_HOSTNAM
 #       ADAPTIVEMD PROJECT
 ###############################################################
 echo "Initializing project"
-python $ADMD_SCRIPT $RUNNAME --init_only --dbhost $DB_HOSTNAME -P {platform} -s $N_THREADS_WORKER -p {prot} -m {all}
+python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P {platform} -s $N_THREADS_WORKER -p {prot} -m {all}
 
 ###############################################################
 #       ADAPTIVEMD TASKS
 ###############################################################
-python $ADMD_SCRIPT $RUNNAME --dbhost $DB_HOSTNAME  -l {length} -N {n_traj} -x {n_ext} -M {n_model} -w $N_WORKERS & pids+=($!)
+python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -N {n_traj} -x {n_ext} {mk_model} -w $N_WORKERS -p {prot} -m {all} & EVENT_PID=$!
 
 ###############################################################
 #       ADAPTIVEMD WORKERS
@@ -92,13 +93,13 @@ which adaptivemdworker
 echo "$N_WORKERS will be used,  $(($MPI_PER_MA*$N_MA)) per node with $OPENMM_CPU_THREADS simulation threads each"
 
 #aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS adaptivemdworker $RUNNAME --dbhost $DB_HOSTNAME --verbose > workers.$i.log & apids+=($!)
-aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS & apids+=($!)
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS & WORKERS_APID=$!
 
  ### ###############################################################
  ### #       ADAPTIVEMD TASKS
  ### # could go here too
  ### ###############################################################
- ### python $ADMD_SCRIPT $RUNNAME --dbhost $DB_HOSTNAME  -l {length} -N {n_traj} -x {n_ext} -M {n_model} -w $N_WORKERS & pids+=($!)
+ ### python $ADMD_SCRIPT $RUNNAME --dbhost $DB_HOSTNAME  -l {length} -N {n_traj} -x {n_ext} {mk_model} -w $N_WORKERS & pids+=($!)
 
 
 ###############################################################
@@ -108,19 +109,19 @@ aprun -n$N_WORKERS -N$MPI_PER_NODE -d$OPENMM_CPU_THREADS ./startworker.sh $RUNNA
 
 echo "Done launching workers, now waiting"
 echo "Waiting for event scripts to terminate"
-for pid in "${{pids[@]}}"; do
-  wait "$pid"
-done
+#for pid in "${{pids[@]}}"; do
+wait "$EVENT_PID"
+#done
 
 echo "Waiting for workers to shut down"
-for apid in "${{apids[@]}}"; do
-  wait "$apid"
-done
+#for apid in "${{apids[@]}}"; do
+wait "$WORKERS_APID"
+#done
 
 echo "Going to shut down the database, event is finished"
-sleep 30
-for mpid in "${{MONGO_PIDS[@]}}"; do
-  kill "$mpid"
-done
+sleep 20
+#for mpid in "${{MONGO_PIDS[@]}}"; do
+kill "$MONGO_APID"
+#done
 
 wait

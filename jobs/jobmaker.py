@@ -44,19 +44,22 @@ if __name__ == "__main__":
 
     with open(job_template, 'r') as f_in, open(job_file, 'w') as f_out:
         text = ''.join([line for line in f_in])
-        f_out.write(text.format(project_name=args.project_name,
-                                nodes=args.nodes,
-                                threads=args.threads,
-                                n_workers=args.n_workers,
-                                w_threads=args.w_threads,
-                                hours=args.hours,
-                                minutes=args.minutes,
-                                strategy=args.strategy,
-                                platform=args.platform,
-                                n_ext=args.n_ext,
-                                n_model=args.n_model,
-                                n_traj=args.n_traj,
-                                prot=args.prot,
-                                all=args.all,
-                                length=args.length,))
+        f_out.write(text.format(
+            project_name=args.project_name,
+            system_name=args.system_name,
+            nodes=args.nodes,
+            threads=args.threads,
+            n_workers=args.n_workers,
+            w_threads=args.w_threads,
+            longts='--longts' if args.longts else '',
+            hours=args.hours,
+            minutes=args.minutes,
+            strategy=args.strategy,
+            platform=args.platform,
+            n_ext=args.n_ext,
+            mk_model= '-M' if args.model else '',
+            n_traj=args.n_traj,
+            prot=args.prot if not args.longts else args.prot * 2 / 5,
+            all=args.all if not args.longts else args.all * 2 / 5,
+            length=args.length,))
 
