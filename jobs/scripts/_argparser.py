@@ -42,8 +42,20 @@ def argparser():
         help="Length of trajectory segments in frames",
         type=int, default=100)
 
+    parser.add_argument("-b","--n_rounds",
+        help="Number of task rounds inside a single PBS job",
+        type=int, default=0)
+
+    parser.add_argument("-k","--minlength",
+        help="Minimum trajectory total length in frames",
+        type=int, default=300)
+
     parser.add_argument("-f","--fixedlength",
         help="Default randomizes traj length, flag to fix to n_steps",
+        action='store_true')
+
+    parser.add_argument("-R","--randomly",
+        help="Purely random sampling",
         action='store_true')
 
     parser.add_argument("-p","--protein-stride", dest="prot",

@@ -82,7 +82,7 @@ python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P 
 ###############################################################
 #       ADAPTIVEMD TASKS
 ###############################################################
-python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -N {n_traj} -x {n_ext} {mk_model} -w $N_WORKERS -p {prot} -m {all} & EVENT_PID=$!
+python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -k {minlength} -N {n_traj} {randomly} -b {n_rounds} -x {n_ext} {mk_model} -w $N_WORKERS -p {prot} -m {all} & EVENT_PID=$!
 
 ###############################################################
 #       ADAPTIVEMD WORKERS

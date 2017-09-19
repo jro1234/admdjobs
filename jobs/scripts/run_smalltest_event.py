@@ -57,14 +57,21 @@ if __name__ == '__main__':
             modellers = list()
             modellers.append(project.generators[nm_modeller_1])
             modellers.append(project.generators[nm_modeller_2])
+
         else:
             modellers = None
 
         start_time = time.time()
         print("TIMER Project add event {0:.5f}", time.time())
-        project.add_event(strategy_pllMD(project, engine, args.n_traj,
-                                         args.n_ext, args.length, modellers,
-                                         args.fixedlength, args.all))
+        project.add_event(strategy_pllMD(
+            project, engine, args.n_traj,
+            args.n_ext, args.length,
+            modellers=modellers,
+            fixedlength=args.fixedlength,
+            minlength=args.minlength,
+            n_rounds=args.n_rounds,
+            randomly=args.randomly,
+            longest=args.all))
 
         #tasks#trajectories = project.new_trajectory(engine['pdb_file'],
         #tasks#                                      n_steps, engine, n_runs)

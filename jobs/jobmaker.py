@@ -27,7 +27,7 @@ if __name__ == "__main__":
     date = '{0}{1}{2}{3}'.format('0' if len(str(now.month))==1 else '',
                                   now.month,
                                  '0' if len(str(now.day))==1 else '',
-                                 now.day)
+                                  now.day)
 
     job_name = '{0}_{1}'.format(args.project_name, date)
     job_folder = 'jobs/{0}/'.format(job_name)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     os.mkdir(job_folder)
 
     ## TODO args to build job script here
-    job_scripts = ['startworker.sh', 'startdb.sh']
+    job_scripts = ['startworker.sh', 'startdb.sh', 'configuration.cfg']
     for jobscript in job_scripts:
         shutil.copy('jobpackage/'+jobscript, job_folder+jobscript)
 
@@ -54,8 +54,11 @@ if __name__ == "__main__":
             longts='--longts' if args.longts else '',
             hours=args.hours,
             minutes=args.minutes,
+            randomly='-R' if args.randomly else '',
             strategy=args.strategy,
             platform=args.platform,
+            n_rounds=args.n_rounds,
+            minlength=args.minlength if args.minlength > args.length else args.length,
             n_ext=args.n_ext,
             mk_model= '-M' if args.model else '',
             n_traj=args.n_traj,
