@@ -51,8 +51,8 @@ def argparser():
         type=int, default=300)
 
     parser.add_argument("-f","--fixedlength",
-        help="Default randomizes traj length, flag to fix to n_steps",
-        action='store_true')
+        help="Default uses fixed traj length, flag to randomize by fraction 0.2 of length argument",
+        action='store_false')
 
     parser.add_argument("-p","--protein-stride", dest="prot",
         help="Stride between saved protein structure frames",

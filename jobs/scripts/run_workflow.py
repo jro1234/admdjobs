@@ -70,7 +70,7 @@ if __name__ == '__main__':
             fixedlength=args.fixedlength,
             minlength=args.minlength,
             n_rounds=args.n_rounds,
-            sampling_phase=args.sampling_phase,
+            sampling_phase=args.sampling_function,
             longest=args.all))
 
         #tasks#trajectories = project.new_trajectory(engine['pdb_file'],

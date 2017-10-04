@@ -54,7 +54,7 @@ if __name__ == "__main__":
             longts='--longts' if args.longts else '',
             hours=args.hours,
             minutes=args.minutes,
-            randomly='-R' if args.randomly else '',
+            sampling_phase=args.sampling_function,
             strategy=args.strategy,
             platform=args.platform,
             n_rounds=args.n_rounds,

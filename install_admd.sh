@@ -11,12 +11,12 @@ INSTALL_ADMD_DB=$PROJWORK/bip149/$USER/
 
 ## Options & Version configuration stuff:
 ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
-ADAPTIVEMD_BRANCH=py3_compat
+ADAPTIVEMD_BRANCH=rp_integration
 GPU_ENV=cudatoolkit
 CONDA_VERSION=2
 OPENMM_VERSION=7.0
-MONGODB_VERSION=3.3.0
-PYMONGO_VERSION=3.3
+MONGODB_VERSION=3.4.9
+PYMONGO_VERSION=3.5
 
 ## Environment preparation:
 module load $GPU_ENV
@@ -54,6 +54,7 @@ curl -O https://repo.continuum.io/miniconda/Miniconda$CONDA_VERSION-latest-Linux
 bash Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh -p ${INSTALL_CONDA}miniconda$CONDA_VERSION/
 source ~/.bashrc
 echo "Miniconda conda executable here: "
+echo "export CONDAPATH=${INSTALL_CONDA}miniconda$CONDA_VERSION/bin" >> ~/.bashrc
 which conda
 conda install python
 conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj

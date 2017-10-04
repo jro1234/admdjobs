@@ -9,7 +9,7 @@ def get_model(project):
     models = sorted(project.models, reverse=True, key=lambda m: m.__time__)
 
     for model in models:
-        assert(isinstance(model, Model))
+        #assert(isinstance(model, Model))
         data = model.data
         c = data['msm']['C']
         s =  np.sum(c, axis=1)
@@ -20,18 +20,22 @@ def get_model(project):
 
 
 def random_restart(project, number=1):
+    trajlist = list()
+
     if len(project.trajectories) > 0:
         print("Using random vector to select new frames")
-        trajlist = [
-            project.trajectories.pick().pick() for _ in range(number)]
+        [trajlist.append(project.trajectories.pick().pick()) for _ in range(number)]
+
+    return trajlist
 
 
-def xplor_microstates(project, number=None):
+def xplor_microstates(project, number=1):
     '''
     This one is the same as project.new_ml_trajectory
     '''
 
     data, c, q = get_model(project)
+    trajlist = list()
 
     # not a good method to get n_states
     # populated clusters in
@@ -77,20 +81,22 @@ def xplor_microstates(project, number=None):
         for state in state_picks
         ]
 
-    trajlist = [filelist[pick[0]][pick[1]] for pick in picks]
+    [trajlist.append(filelist[pick[0]][pick[1]]) for pick in picks]
 
     print("Trajectory picks list:\n", trajlist)
     return trajlist
 
 
-
+# TODO first time for any function won't find model
+#      - need to invoke random sampling...
+#        - try to automate...
 def get_one(name_func):
 
-    _sampling_function = locals()[name_func]
+    _sampling_function = globals()[name_func]
     print("Retrieved sampling function: ", _sampling_function)
 
     # Use Sampled Frames to make New Trajectories
-    def sampling_function(_sampling_function, project, engine, length, number, *args):
+    def sampling_function(project, engine, length, number, *args):
 
         if isinstance(length, int):
             assert(isinstance(number, int))
@@ -105,7 +111,7 @@ def get_one(name_func):
                 project.new_trajectory(frame, length[i], engine)
                 for i,frame in enumerate(
 
-                    _sampling_function(number, *args))
+                    _sampling_function(project, number, *args))
             ]
 
             return trajectories

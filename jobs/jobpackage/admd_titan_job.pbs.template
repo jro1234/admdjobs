@@ -10,6 +10,14 @@
 
 echo -e "\n\nStarting an AdaptiveMD Job\n------------------------\n\n"
 
+## To use python 2.7 environment
+export PATH=$CONDAPATH:$PATH
+echo "Using this python:"
+echo "  ", `which python`
+#source activate py27
+#which python
+
+
 
 # on titan environment doesn't matter until inside aprun
 #module switch PrgEnv-pgi/5.2.82 PrgEnv-gnu
@@ -51,12 +59,6 @@ export OPENMM_CPU_THREADS=$N_THREADS_WORKER
 echo "Number of workers: $N_WORKERS"
 echo "Number of threads: $OMP_NUM_THREADS"
 
-## To use python 2 environment
-which python
-#source activate py27
-#which python
-
-
 ###############################################################
 #       MONGODB CONNECTION
 ###############################################################
@@ -82,7 +84,7 @@ python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P 
 ###############################################################
 #       ADAPTIVEMD TASKS
 ###############################################################
-python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -k {minlength} -N {n_traj} {randomly} -b {n_rounds} -x {n_ext} {mk_model} -w $N_WORKERS -p {prot} -m {all} & EVENT_PID=$!
+python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -k {minlength} -N {n_traj} -S {sampling_phase} -b {n_rounds} -x {n_ext} {mk_model} -w $N_WORKERS -p {prot} -m {all} & EVENT_PID=$!
 
 ###############################################################
 #       ADAPTIVEMD WORKERS
