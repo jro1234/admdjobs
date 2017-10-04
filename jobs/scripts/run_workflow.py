@@ -10,7 +10,7 @@ from __future__ import print_function
 
 # Import custom adaptivemd init & strategy functions
 from _argparser import argparser
-from __run_admd import init_project, strategy_pllMD
+from __run_admd import init_project, strategy_function
 from sys import exit
 import time
 
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
     else:
         print("Adding event to project from function:")
-        print(strategy_pllMD)
+        print(strategy_function)
 
         if  args.longts:
             ext = '-5'
@@ -63,14 +63,14 @@ if __name__ == '__main__':
 
         start_time = time.time()
         print("TIMER Project add event {0:.5f}", time.time())
-        project.add_event(strategy_pllMD(
+        project.add_event(strategy_function(
             project, engine, args.n_traj,
             args.n_ext, args.length,
             modellers=modellers,
             fixedlength=args.fixedlength,
             minlength=args.minlength,
             n_rounds=args.n_rounds,
-            randomly=args.randomly,
+            sampling_phase=args.sampling_phase,
             longest=args.all))
 
         #tasks#trajectories = project.new_trajectory(engine['pdb_file'],

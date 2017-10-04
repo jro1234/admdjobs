@@ -9,6 +9,8 @@ and project initializing function 'init_project'.
 from __future__ import print_function
 import time
 
+import sampling_functions
+
 
 
 class counter(object):
@@ -51,8 +53,6 @@ def randlength(n, incr, length, lengthvariance=0.2):
 
     rand = [random.random()*lengthvariance*2-lengthvariance
             for _ in range(n)]
-
-    print("randlengthing this: ", rand)
 
     return [int(length*(1+r)/incr)*incr
             for r in rand]
@@ -105,10 +105,16 @@ def model_task(project, modeller, margs, trajectories=None):
 
 
 
-def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
+def strategy_function(project, engine, n_run, n_ext, n_steps,
+                   sampling_phase='xplor_microstates',
                    modellers=None, fixedlength=True, longest=5000,
-                   continuing=True, minlength=None, randomly=False,
+                   continuing=True, minlength=None,
                    n_rounds=0, **kwargs):
+
+    # TODO once making sure this works
+    #      move it down to import when used
+    #      after first round of tasks 
+    sampling_function = sampling_functions.get_one(sampling_phase)
 
     c = counter(n_rounds)
     if n_rounds:
@@ -168,6 +174,7 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
     print("Starting Trajectory Extensions")
 
     def model_extend(modeller, randbreak, mtask=None, c=None):
+
         #print("c_ext is ", c_ext, "({0})".format(n_ext))
         #print("length of extended is: ", len(extended))
 
@@ -177,19 +184,18 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
                 if not randbreak and not fixedlength:
                     randbreak += randlength(n_run, longest, n_steps)
                     lengtharg = randbreak
-                    
+
                 else:
                     # this may already be set if new project
                     # was created in this run of adaptivemd
                     #locals()['randbreak'] = [n_steps]*n_run
                     lengtharg = n_steps
 
-                # this will randomly sample the existing
-                # trajectories for starting frames
-                # if no pre-existing data
-                trajectories = project.new_ml_trajectory(engine, lengtharg, n_run, randomly)
+                trajectories = sampling_function(project, engine, lengtharg, n_run)
+                #trajectories = project.new_ml_trajectory(engine, lengtharg, n_run, randomly)
 
-                # could use the initial PDB for next round
+                # Since first could use the initial PDB for next round
+                # but will be heavy operation on single file 
                 #trajectories = project.new_trajectory(engine['pdb_file'],
                 #                                      engine, n_steps, n_run-1)
 
@@ -229,7 +235,7 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
                 if continuing:
                     mtask = model_task(project, modeller, margs)
                     tasks.append(mtask)
-                    
+
                 print("Queueing final extensions after modelling done")
                 print("Randbreak: \n", randbreak)
                 unrandbreak = [2*n_steps - rb for rb in randbreak]
@@ -237,7 +243,8 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
                 unrandbreak.reverse()
                 print("Unrandbreak: \n", unrandbreak)
 
-                trajectories = project.new_ml_trajectory(engine, unrandbreak, n_run, randomly)
+                trajectories = sampling_function(project, engine, unrandbreak, n_run)
+                #trajectories = project.new_ml_trajectory(engine, unrandbreak, n_run, randomly)
 
                 #print(trajectories)
                 [tasks.append(t.run()) for t in trajectories]
@@ -256,7 +263,8 @@ def strategy_pllMD(project, engine, n_run, n_ext, n_steps,
             #    with mtask
             if len(tasks) == 0:
                 print("Queueing new round of modelled trajectories")
-                trajectories = project.new_ml_trajectory(engine, n_steps, n_run, randomly)
+                trajectories = sampling_function(project, engine, n_steps, n_run)
+                #trajectories = project.new_ml_trajectory(engine, n_steps, n_run, randomly)
 
                 if not n_rounds or not c.done:
                     c.increment()

@@ -54,10 +54,6 @@ def argparser():
         help="Default randomizes traj length, flag to fix to n_steps",
         action='store_true')
 
-    parser.add_argument("-R","--randomly",
-        help="Purely random sampling",
-        action='store_true')
-
     parser.add_argument("-p","--protein-stride", dest="prot",
         help="Stride between saved protein structure frames",
         type=int, default=5)
@@ -76,7 +72,11 @@ def argparser():
 
     parser.add_argument("-r","--strategy",
         help="Filename of strategy script to run for generating tasks",
-        type=str, default="run_smalltest_event.py")
+        type=str, default="run_workflow.py")
+
+    parser.add_argument("-S","--sampling_function",
+        help="Name of sampling function saved in sampling_functions.py",
+        type=str, default="random_restart")
 
     parser.add_argument("-n","--n-nodes", dest="nodes",
         help="Number of nodes for job",
