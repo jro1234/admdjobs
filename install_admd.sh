@@ -110,6 +110,7 @@ echo "export ADMD_DATA=${INSTALL_ADMD_DATA}${FOLDER_ADMD_DATA}/" >> ~/.bashrc
 cd $INSTALL_ADMD_JOBS
 mkdir $FOLDER_ADMD_JOBS
 cd $FOLDER_ADMD_JOBS
+cp -r $CWD/jobs/ ./
 echo "export ADMD_JOBS=${INSTALL_ADMD_JOBS}${FOLDER_ADMD_JOBS}/jobs/" >> ~/.bashrc
 source ~/.bashrc
 cd $CWD
