@@ -9,7 +9,7 @@ and project initializing function 'init_project'.
 from __future__ import print_function
 import time
 
-import sampling_functions
+import sampling_interface
 
 
 
@@ -114,7 +114,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
     # TODO once making sure this works
     #      move it down to import when used
     #      after first round of tasks 
-    sampling_function = sampling_functions.get_one(sampling_phase)
+    sampling_function = sampling_interface.get_one(sampling_phase)
 
     c = counter(n_rounds)
     if n_rounds:

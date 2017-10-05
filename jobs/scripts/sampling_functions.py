@@ -15,31 +15,31 @@ see the examples.
 The requirements for a full-fledged sampling function:
 
  0. Call signature: project, number, additional arguments
- 1. Query some attribute of the model
- 2. Weights based on analysis of this attribute
- 3. Sample a selection of frames from trajectories
- 3. Returns these frames
+
+ 1. Get a model with function 'get_model'
+    - currently returns last model, can expand functionality later
+    - it checks that each microstate in the model is populated
+    - then returns a tuple of: model data, count matrix
+
+ 2. Query some attribute of the model
+    - only the count matrix, transition matrix, dtrajs,
+      and a couple other MSM elements are available
+      in the model data object. Can add more at our
+      liesure.
+
+ 3. Weights based on analysis of this attribute
+
+ 4. Sample a selection of frames from trajectories
+    - use something like the np.choice shown in
+      xplor_microstates. here the weights were given
+      by a vector with probability for each state i.
+
+ 5. Returns these frames
+    - these frames are converted to trajectories for execution
+      by the sampling interface component, no need to do
 
 '''
 
-
-
-# TODO make get_model able to search the model data with a
-#      list of keys to query data from 'model.data'
-# TODO model data check feature to check something about model
-#      before returning it. 
-def get_model(project):
-    models = sorted(project.models, reverse=True, key=lambda m: m.__time__)
-
-    for model in models:
-        # Would have to import Model class
-        # definition for this check
-        #assert(isinstance(model, Model))
-        data = model.data
-        c = data['msm']['C']
-        s =  np.sum(c, axis=1)
-        if 0 not in s:
-            return data, c
 
 
 def random_restart(project, number=1):
@@ -111,39 +111,21 @@ def xplor_microstates(project, number=1):
     return trajlist
 
 
-def get_one(name_func):
+# TODO make get_model able to search the model data with a
+#      list of keys to query data from 'model.data'
+# TODO model data check feature to check something about model
+#      before returning it. 
+def get_model(project):
+    models = sorted(project.models, reverse=True, key=lambda m: m.__time__)
 
-    _sampling_function = globals()[name_func]
-    print("Retrieved sampling function: ", _sampling_function)
-    backup_sampling_function = random_restart
-    print("Backup sampling function: ", backup_sampling_function)
+    for model in models:
+        # Would have to import Model class
+        # definition for this check
+        #assert(isinstance(model, Model))
+        data = model.data
+        c = data['msm']['C']
+        s =  np.sum(c, axis=1)
+        if 0 not in s:
+            return data, c
 
-    # Use Sampled Frames to make New Trajectories
-    def sampling_function(project, engine, length, number, *args):
-
-        trajectories = list()
-
-        if isinstance(length, int):
-            assert(isinstance(number, int))
-            length = [length] * number
-
-        if isinstance(length, list):
-            if number is None:
-                number = len(length)
-
-            if len(project.models) == 0:
-                sf = backup_sampling_function
-            else:
-                sf = _sampling_function
-            
-            for i,frame in enumerate(sf(project, number, *args)):
-                trajectories.append(
-                    project.new_trajectory(
-                    frame, length[i], engine)
-                )
-
-        return trajectories
-
-
-    return sampling_function
 
