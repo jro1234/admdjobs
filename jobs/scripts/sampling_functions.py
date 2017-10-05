@@ -4,19 +4,42 @@
 import numpy as np
 
 
+'''
+This file contains functions that sample from trajectory data
+using a model. One sampling function is special "randomm_restart",
+this one does not use a model and provides a random selection
+of restarting frames. It is used as a backup sampling function
+incase no model is available. To create a new sampling function,
+see the examples. 
 
+The requirements for a full-fledged sampling function:
+
+ 0. Call signature: project, number, additional arguments
+ 1. Query some attribute of the model
+ 2. Weights based on analysis of this attribute
+ 3. Sample a selection of frames from trajectories
+ 3. Returns these frames
+
+'''
+
+
+
+# TODO make get_model able to search the model data with a
+#      list of keys to query data from 'model.data'
+# TODO model data check feature to check something about model
+#      before returning it. 
 def get_model(project):
     models = sorted(project.models, reverse=True, key=lambda m: m.__time__)
 
     for model in models:
+        # Would have to import Model class
+        # definition for this check
         #assert(isinstance(model, Model))
         data = model.data
         c = data['msm']['C']
         s =  np.sum(c, axis=1)
         if 0 not in s:
-            q = 1.0 / s
-
-            return data, c, q
+            return data, c
 
 
 def random_restart(project, number=1):
@@ -34,7 +57,8 @@ def xplor_microstates(project, number=1):
     This one is the same as project.new_ml_trajectory
     '''
 
-    data, c, q = get_model(project)
+    data, c = get_model(project)
+    q = 1/np.sum(c, axis=1)
     trajlist = list()
 
     # not a good method to get n_states
@@ -87,16 +111,17 @@ def xplor_microstates(project, number=1):
     return trajlist
 
 
-# TODO first time for any function won't find model
-#      - need to invoke random sampling...
-#        - try to automate...
 def get_one(name_func):
 
     _sampling_function = globals()[name_func]
     print("Retrieved sampling function: ", _sampling_function)
+    backup_sampling_function = random_restart
+    print("Backup sampling function: ", backup_sampling_function)
 
     # Use Sampled Frames to make New Trajectories
     def sampling_function(project, engine, length, number, *args):
+
+        trajectories = list()
 
         if isinstance(length, int):
             assert(isinstance(number, int))
@@ -106,15 +131,18 @@ def get_one(name_func):
             if number is None:
                 number = len(length)
 
-            trajectories = [
+            if len(project.models) == 0:
+                sf = backup_sampling_function
+            else:
+                sf = _sampling_function
+            
+            for i,frame in enumerate(sf(project, number, *args)):
+                trajectories.append(
+                    project.new_trajectory(
+                    frame, length[i], engine)
+                )
 
-                project.new_trajectory(frame, length[i], engine)
-                for i,frame in enumerate(
-
-                    _sampling_function(project, number, *args))
-            ]
-
-            return trajectories
+        return trajectories
 
 
     return sampling_function
