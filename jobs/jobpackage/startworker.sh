@@ -24,6 +24,6 @@ echo "Delay of $delay"
 sleep $delay
 #adaptivemdworker $RUNNAME --sleep 2 --delay $delay --dbhost $DB_HOSTNAME --verbose > workers.$i.$j.log
 
-adaptivemdworker $RUNNAME --sleep 2 --dbhost $DB_HOSTNAME --verbose > workers.$N_WORKERS.$j.log
+adaptivemdworker $RUNNAME --sleep 2 --dbhost $DB_HOSTNAME --verbose > workers.$RUNNAME.$j.log
 
 sleep 3
