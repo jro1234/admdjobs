@@ -22,7 +22,8 @@ FOLDER_ADMD_JOBS=admd
 ## Options & Versions:
 ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
-GPU_ENV=cudatoolkit
+CONDA_ENV_NAME=py27
+CONDA_ENV_VERSION=2.7
 CONDA_VERSION=2
 OPENMM_VERSION=7.0
 
@@ -30,9 +31,6 @@ OPENMM_VERSION=7.0
 # the libraries available on Titan
 MONGODB_VERSION=3.3.0
 PYMONGO_VERSION=3.3
-
-## Environment preparation:
-module load $GPU_ENV
 
 ###############################################################################
 #
@@ -70,7 +68,8 @@ echo "export CONDAPATH=${INSTALL_CONDA}miniconda$CONDA_VERSION/bin" >> ~/.bashrc
 source ~/.bashrc
 PATH=$CONDAPATH:$PATH
 which conda
-conda install python
+#conda install python
+conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_VERSION
 
 # TODO this is redundant with AdaptiveMD install
 #      remove after test
