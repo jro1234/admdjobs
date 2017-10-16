@@ -28,6 +28,15 @@ class counter(object):
         print("Incrementing counter to: ", self.i)
 
 
+def print_project_work(project):
+    print("Project models\n - Number: {n_model}\n"
+          .format(n_model=len(project.models)))
+
+    print("Project trajectories\n - Number: {n_traj}\n - Lengths:\n{lengths}\n"
+          .format(n_traj=len(project.trajectories),
+                  lengths=[t.length for t in project.trajectories]))
+
+
 
 def print_last_model(project):
     try:
@@ -117,6 +126,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
     sampling_function = sampling_interface.get_one(sampling_phase)
 
     c = counter(n_rounds)
+
     if n_rounds:
         assert(n_rounds > 0)
         print("Going to do n_rounds:  ", c.n)
@@ -136,12 +146,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
     if minlength is None:
         minlength = n_steps
 
-    print("Project models\n - Number: {n_model}\n"
-          .format(n_model=len(project.models)))
-
-    print("Project trajectories\n - Number: {n_traj}\n - Lengths:\n{lengths}\n"
-          .format(n_traj=len(project.trajectories),
-                  lengths=[t.length for t in project.trajectories]))
+    print_project_work(project)
 
     # ROUND 1 - No pre-existing data
     #         - will skip if revisiting project
@@ -340,6 +345,8 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         trajectories = set()
         while not done and ( not n_rounds or not c.done ):
 
+            print_project_work(project)
+
             print("looking for too-short trajectories")
             if c.done:
                 xtasks = list()
@@ -401,6 +408,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         # when c_ext == n_ext, we just wanted
         # to use check_trajectory_minlength above
         if c_ext < n_ext and not c.done:
+
+            print_project_work(project)
+
             if modeller:
                 margs = update_margs()
 
