@@ -24,19 +24,14 @@ FOLDER_ADMD_JOBS=admd
 ## Options & Versions:
 ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
-<<<<<<< HEAD
+
 CONDA_ENV_NAME=py27
 CONDA_ENV_VERSION=2.7
-=======
->>>>>>> 8b4030d66020b1ff6b0e1b75d7d94642f5d063fb
+
 CONDA_VERSION=2
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
-<<<<<<< HEAD
-PYMONGO_VERSION=3.3
-=======
 #PYMONGO_VERSION=3.5
->>>>>>> 8b4030d66020b1ff6b0e1b75d7d94642f5d063fb
 
 ###############################################################################
 #
@@ -77,17 +72,8 @@ which conda
 #conda install python
 conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_VERSION
 
-# TODO 1) this is somewhat redundant with AdaptiveMD install
-#      - allow task stack to change versions 
-#        but... always install default task stack
-#               with specified or latest version
-#
-#conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj
+source activate $CONDA_ENV_NAME
 
-# TODO 2) see 1) here is the default task stack with versions for Titan
-#      - with [admdjobs] it is installed in same env as adaptivemd
-#        for streamlined adaptivemdworker usage
-conda install pyemma openmm=$OPENMM_VERSION mdtraj
 
 rm Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
 
@@ -102,6 +88,19 @@ git checkout $ADAPTIVEMD_BRANCH
 python setup.py $ADAPTIVEMD_INSTALLMETHOD
 python -c "import adaptivemd" || echo "something wrong with adaptivemd install"
 echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
+
+
+# TODO 1) this is somewhat redundant with AdaptiveMD install
+#      - allow task stack to change versions 
+#        but... always install default task stack
+#               with specified or latest version
+#
+#conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj
+
+# TODO 2) see 1) here is the default task stack with versions for Titan
+#      - with [admdjobs] it is installed in same env as adaptivemd
+#        for streamlined adaptivemdworker usage
+conda install pyemma openmm=$OPENMM_VERSION mdtraj
 
 ## TODO 3) Update Docs and Tests with new API
 ### TEST AdaptiveMD
