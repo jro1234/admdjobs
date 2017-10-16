@@ -1,5 +1,6 @@
 
 
+from __future__ import print_function
 
 import numpy as np
 
@@ -95,15 +96,27 @@ def xplor_microstates(project, number=1):
     state_picks = np.random.choice(np.arange(len(q)), size=number, p=q)
 
     print("Using probability vector for states q:\n", q)
-    print("...we have chosen these states:\n", [(s, q[s]) for s in state_picks])
 
     filelist = data['input']['trajectories']
 
-    picks = [
-        frame_state_list[state][np.random.randint(0,
+    print("FILELIST: ", len(filelist), "entries, with",
+          len(project.trajectories), "trajectories actually stored")
+
+    for f in filelist:
+        print(f)
+
+    picks = list()
+    for state in state_picks:
+        pick = frame_state_list[state][np.random.randint(0,
                 len(frame_state_list[state]))]
-        for state in state_picks
-        ]
+        print("state, probability, pick: ", state, q[state], pick)
+        picks.append(pick)
+
+    ###picks = [
+    ###    frame_state_list[state][np.random.randint(0,
+    ###            len(frame_state_list[state]))]
+    ###    for state in state_picks
+    ###    ]
 
     [trajlist.append(filelist[pick[0]][pick[1]]) for pick in picks]
 
@@ -117,7 +130,6 @@ def xplor_microstates(project, number=1):
 #      before returning it. 
 def get_model(project):
     models = sorted(project.models, reverse=True, key=lambda m: m.__time__)
-
     for model in models:
         # Would have to import Model class
         # definition for this check
