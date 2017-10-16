@@ -9,6 +9,7 @@ j=$ALPS_APP_PE
 
 module load cudatoolkit
 
+export PYTHON_EGG_CACHE=$CONDAPATH/../../.python-eggs/
 export PATH=$CONDAPATH:$PATH 
 which python
 which adaptivemdworker
