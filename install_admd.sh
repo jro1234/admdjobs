@@ -1,5 +1,11 @@
 #!/bin/bash
 
+
+# TODO Add a check for the python version
+#      on Titan, default is super-old 2.6
+#      and this will load 2.7.9 by default
+module load python
+
 CWD=`pwd`
 
 ## Paths for different installer components
@@ -15,18 +21,13 @@ FOLDER_ADMD_DB=mongodb
 FOLDER_ADMD_DATA=admd
 FOLDER_ADMD_JOBS=admd
 
-## Options & Version configuration stuff:
-ADAPTIVEMD_INSTALLMETHOD=develop
-ADAPTIVEMD_REPO=jrossyra/adaptivemd.git
+## Options & Versions:
+ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
-
-GPU_ENV=cudatoolkit
-
 CONDA_VERSION=2
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
 #PYMONGO_VERSION=3.5
-
 
 ###############################################################################
 #
@@ -59,9 +60,10 @@ which mongod
 cd $INSTALL_CONDA
 curl -O https://repo.continuum.io/miniconda/Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
 bash Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh -p ${INSTALL_CONDA}miniconda$CONDA_VERSION/
-source ~/.bashrc
 echo "Miniconda conda executable here: "
 echo "export CONDAPATH=${INSTALL_CONDA}miniconda$CONDA_VERSION/bin" >> ~/.bashrc
+source ~/.bashrc
+PATH=$CONDAPATH:$PATH
 which conda
 conda install python
 
