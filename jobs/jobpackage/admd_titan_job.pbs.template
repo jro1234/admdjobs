@@ -17,7 +17,13 @@ export APRUN_XFER_LIMITS=1
 cd $PBS_O_WORKDIR
 
 ## To use python 2.7 environment
-export PATH=$CONDAPATH:$PATH
+ENVIRONMENT={environment}
+if [[ -z "$ENVIRONMENT" ]]; then
+  source $CONDAPATH/activate $ENVIRONMENT
+else
+  export PATH=$CONDAPATH:$PATH
+fi
+
 #source activate py27
 echo "Using this python:"
 echo `which python`
@@ -76,13 +82,12 @@ echo "MongoDB Hostname for run with $N_WORKERS AdaptiveMDWorkers: $DB_HOSTNAME"
 ###############################################################
 echo "Initializing project"
 python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P {platform} -p {prot} -m {all}
-
 ###############################################################
 #       ADAPTIVEMD TASKS
 ###############################################################
 echo "Starting Workflow for run '$RUNNAME' with Strategy Function:"
 echo $ADMD_SCRIPT
-python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {length} -k {minlength} -N {n_traj} -S {sampling_phase} -b {n_rounds} -x {n_ext} {mk_model} -p {prot} -m {all} & EVENT_PID=$!
+python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -e $ENVIRONMENT -l {length} -k {minlength} -N {n_traj} -S {sampling_phase} -b {n_rounds} -x {n_ext} {mk_model} -p {prot} -m {all} & EVENT_PID=$!
 
 ###############################################################
 #       ADAPTIVEMD WORKERS
@@ -90,7 +95,7 @@ python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -l {le
 ###############################################################
 echo "This is the adaptivemdworker used for the job"
 which adaptivemdworker
-aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER & WORKERS_APID=$!
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $ENVIRONMENT $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER & WORKERS_APID=$!
 
 ###############################################################
 #       FINISHING TOUCHES

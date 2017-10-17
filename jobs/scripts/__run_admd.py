@@ -67,7 +67,7 @@ def randlength(n, incr, length, lengthvariance=0.2):
             for r in rand]
 
 
-def check_trajectory_minlength(project, minlength, n_steps=None, n_run=None, trajectories=None):
+def check_trajectory_minlength(project, minlength, n_steps=None, n_run=None, trajectories=None, environment=None):
 
     if not trajectories:
         trajectories = project.trajectories
@@ -90,6 +90,8 @@ def check_trajectory_minlength(project, minlength, n_steps=None, n_run=None, tra
 
         if xlength > n_steps / 2:
             tasks.append(t.extend(xlength))
+            if environment:
+                tasks[-1].add_conda_env(environment)
 
     if n_run is not None and len(tasks) > n_run:
         tasks = tasks[:n_run]
@@ -97,7 +99,7 @@ def check_trajectory_minlength(project, minlength, n_steps=None, n_run=None, tra
     return tasks
 
 
-def model_task(project, modeller, margs, trajectories=None):
+def model_task(project, modeller, margs, trajectories=None, environment=None):
     # model task goes last to ensure (on first one) that the
     # previous round of trajectories is done
     #print("Using these in the model:\n", list(project.trajectories))
@@ -105,6 +107,9 @@ def model_task(project, modeller, margs, trajectories=None):
         trajectories = project.trajectories
 
     mtask = modeller.execute(list(trajectories), **margs)
+    if environment:
+        mtask.add_conda_env(environment)
+
     project.queue(mtask)
 
     print("Queued Modelling Task")
@@ -118,7 +123,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                    sampling_phase='xplor_microstates',
                    modellers=None, fixedlength=True, longest=5000,
                    continuing=True, minlength=None,
-                   n_rounds=0, **kwargs):
+                   environment=None, n_rounds=0, **kwargs):
 
     # TODO once making sure this works
     #      move it down to import when used
@@ -158,6 +163,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         [tasks.append(project.new_trajectory(
          engine['pdb_file'], rb, engine).run())
          for rb in randbreak]
+
+        if environment:
+            [ta.add_conda_env(environment) for ta in tasks]
 
         if not n_rounds or not c.done:
             project.queue(tasks)
@@ -207,6 +215,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                 #print(trajectories)
                 if not n_rounds or not c.done:
                     [tasks.append(t.run()) for t in trajectories]
+                    if environment:
+                        [ta.add_conda_env(environment) for ta in tasks]
+
                     for task in tasks:
                         project.queue(task)
                         time.sleep(0.1)
@@ -221,7 +232,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     #    project.
                     if notfirsttime or len(project.trajectories) >= n_run:
                         print("adding first/next modeller task")
-                        mtask = model_task(project, modeller, margs)
+                        mtask = model_task(project, modeller, margs, environment=environment)
                         tasks.append(mtask)
                         waiting = False
                     else:
@@ -238,7 +249,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                 # is OK because not looking for mtask
                 # after last round, only task.done
                 if continuing:
-                    mtask = model_task(project, modeller, margs)
+                    mtask = model_task(project, modeller, margs, environment=environment)
                     tasks.append(mtask)
 
                 print("Queueing final extensions after modelling done")
@@ -253,6 +264,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
                 #print(trajectories)
                 [tasks.append(t.run()) for t in trajectories]
+                if environment:
+                    [ta.add_conda_env(environment) for ta in tasks]
+
                 if not n_rounds or not c.done:
                     c.increment()
                     project.queue(tasks)
@@ -274,10 +288,13 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                 if not n_rounds or not c.done:
                     c.increment()
                     [tasks.append(t.run()) for t in trajectories]
+                    if environment:
+                        [ta.add_conda_env(environment) for ta in tasks]
+
                     project.queue(tasks)
 
                 if mtask.is_done():
-                    mtask = model_task(project, modeller, margs)
+                    mtask = model_task(project, modeller, margs, environment=environment)
                     tasks.append(mtask)
 
                     return any([ta.is_done() for ta in tasks[:-1]])
@@ -352,7 +369,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                 xtasks = list()
             else:
                 xtasks = check_trajectory_minlength(project, minlength,
-                                                    n_steps, n_run)
+                                            n_steps, n_run, environment)
 
             tnames = set()
             if len(trajectories) > 0:

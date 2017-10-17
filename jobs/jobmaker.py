@@ -57,6 +57,7 @@ if __name__ == "__main__":
             sampling_phase=args.sampling_function,
             strategy=args.strategy,
             platform=args.platform,
+            environment=args.environment if args.environment else '',
             n_rounds=args.n_rounds,
             minlength=args.minlength if args.minlength > args.length else args.length,
             n_ext=args.n_ext,

@@ -2,15 +2,21 @@
 
 
 RUNNAME=$1
-DB_HOSTNAME=$2
-N_WORKERS=$3
-N_THREADS_WORKER=$4
+ENVIRONMENT=$2
+DB_HOSTNAME=$3
+N_WORKERS=$4
+N_THREADS_WORKER=$5
 j=$ALPS_APP_PE 
+
+if [[ -z $ENVIRONMENT ]]; then
+  source $CONDAPATH/activate $ENVIRONMENT
+else
+  export PATH=$CONDAPATH:$PATH 
+fi
 
 module load cudatoolkit
 
 export PYTHON_EGG_CACHE=$CONDAPATH/../../.python-eggs/
-export PATH=$CONDAPATH:$PATH 
 which python
 which adaptivemdworker
 

@@ -34,6 +34,9 @@ def argparser():
         help="Number of extensions to trajectories",
         type=int, default=1)
 
+    parser.add_argument("-e","--environment", nargs='*',
+        help="Environment for running tasks")
+
     parser.add_argument("--longts", dest="longts",
         help="Flag for 5fs timesteps",
         action='store_true')
