@@ -17,16 +17,18 @@ export APRUN_XFER_LIMITS=1
 cd $PBS_O_WORKDIR
 
 ## To use python 2.7 environment
+export PATH=$CONDAPATH:$PATH
 ENVIRONMENT={environment}
-if [[ -z "$ENVIRONMENT" ]]; then
+if [[ ! -z "$ENVIRONMENT" ]]; then
+  echo "source $CONDAPATH/activate $ENVIRONMENT"
   source $CONDAPATH/activate $ENVIRONMENT
-else
-  export PATH=$CONDAPATH:$PATH
 fi
 
 #source activate py27
 echo "Using this python:"
-echo `which python`
+which python
+echo "This is the adaptivemdworker used for the job"
+which adaptivemdworker
 pwd
 
 #####################################################
@@ -51,15 +53,15 @@ ADMD_SCRIPT=${{ADMD_JOBS}}scripts/$SCRIPT_NAME
 #     aren't actually used, they just print to
 #     fields in the shell script comments
 #
-export N_NODES={nodes}
-export N_WORKERS=$(($N_NODES-1))
-export OMP_NUM_THREADS={threads}
-export N_THREADS_WORKER=$(($OMP_NUM_THREADS-1))
+N_NODES={nodes}
+N_WORKERS=$(($N_NODES-1))
+OMP_NUM_THREADS={threads}
+N_THREADS_WORKER=$(($OMP_NUM_THREADS-1))
 # later can calcultae with mpi workers
-#export N_THREADS_WORKER={w_threads}
-#export N_WORKERS={n_workers}
-#export MPI_PER_NODE=$(($OMP_NUM_THREADS/$N_THREADS_WORKER))
-export MPI_PER_NODE=1
+#N_THREADS_WORKER={w_threads}
+#N_WORKERS={n_workers}
+#xport MPI_PER_NODE=$(($OMP_NUM_THREADS/$N_THREADS_WORKER))
+MPI_PER_NODE=1
 
 echo "Number of workers: $N_WORKERS"
 echo "Number of threads: $OMP_NUM_THREADS"
@@ -93,8 +95,6 @@ python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -e $EN
 #       ADAPTIVEMD WORKERS
 # launch workers who write stdout/err to job directory
 ###############################################################
-echo "This is the adaptivemdworker used for the job"
-which adaptivemdworker
 aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $ENVIRONMENT $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER & WORKERS_APID=$!
 
 ###############################################################

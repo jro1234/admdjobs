@@ -70,7 +70,8 @@ if __name__ == '__main__':
             fixedlength=args.fixedlength,
             minlength=args.minlength,
             n_rounds=args.n_rounds,
-            environment=args.environment,
+            environment=args.environment[0],
+            activate_prefix=args.activate_prefix,
             sampling_phase=args.sampling_function,
             longest=args.all))
 

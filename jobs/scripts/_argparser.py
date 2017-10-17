@@ -69,6 +69,10 @@ def argparser():
         help="Simulation Platform: Reference, CPU, CUDA, or OpenCL",
         type=str, default="CPU")
 
+    parser.add_argument("-A","--activate_prefix",
+        help="Prefix for activate script",
+        type=str, default="$CONDAPATH")
+
     parser.add_argument("-d","--dbhost",
         help="IP address of MongoDB host",
         type=str, default="localhost")
