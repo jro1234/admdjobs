@@ -20,8 +20,14 @@ FOLDER_ADMD_JOBS=admd
 ## Options & Versions:
 ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
-ADAPTIVEMD_INSTALLMETHOD=develop
+ADAPTIVEMD_INSTALLMETHOD=install
 
+# This has given trouble when loading
+# inside of a job on Titan, so currently
+# we have everything install under the
+# *root* conda
+#CONDA_ENV_NAME=
+#CONDA_ENV_VERSION=
 CONDA_ENV_NAME=py27
 CONDA_ENV_VERSION=2.7
 CONDA_VERSION=2
@@ -67,9 +73,14 @@ PATH=$CONDAPATH:$PATH
 #  Install py27 Environment for AdaptiveMD                                    #
 ###############################################################################
 which conda
-conda config --add channels conda-forge
-conda config --add channels omnia
-conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_VERSION
+conda config --append channels conda-forge
+conda config --append channels omnia
+
+if [[ ! -z "$CONDA_ENV_NAME" ]]; then
+  echo "Creating and Activating new conda env: $CONDA_ENV_NAME"
+  conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_VERSION
+  source $CONDAPATH/activate $CONDA_ENV_NAME
+fi
 
 rm Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
 
@@ -80,8 +91,6 @@ cd $INSTALL_ADAPTIVEMD
 git clone https://github.com/$ADAPTIVEMD_VERSION
 cd adaptivemd/
 git checkout $ADAPTIVEMD_BRANCH
-
-source $CONDAPATH/activate $CONDA_ENV_NAME
 
 #conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj
 # TODO 1) this is somewhat redundant with AdaptiveMD install
@@ -126,7 +135,10 @@ conda install pyemma openmm=$OPENMM_VERSION mdtraj
 #echo "Closing database after tests"
 #kill $MONGO_PID
 
-source deactivate
+if [[ ! -z "$CONDA_ENV_NAME" ]]; then
+  echo "Deactivating conda env: $CONDA_ENV_NAME"
+  source deactivate
+fi
 
 ###############################################################################
 #   Now creating the Data Directory                                           #
@@ -160,3 +172,4 @@ echo "\$ADMD_DATA added to environment:"
 echo $ADMD_DATA
 echo "\$ADMD_JOBS added to environment:"
 echo $ADMD_JOBS
+

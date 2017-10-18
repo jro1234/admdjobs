@@ -95,11 +95,15 @@ python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -e $EN
 #       ADAPTIVEMD WORKERS
 # launch workers who write stdout/err to job directory
 ###############################################################
-aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $ENVIRONMENT $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER & WORKERS_APID=$!
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER $ENVIRONMENT & WORKERS_APID=$!
 
 ###############################################################
 #       FINISHING TOUCHES
 ###############################################################
+if [[ ! -z "$ENVIRONMENT" ]]; then
+  echo "source deactivate"
+  source deactivate
+fi
 echo "Done launching workers, now waiting"
 echo "Waiting for event scripts to terminate"
 wait "$EVENT_PID"

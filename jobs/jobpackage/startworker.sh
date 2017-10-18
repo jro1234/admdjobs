@@ -2,10 +2,11 @@
 
 
 RUNNAME=$1
-ENVIRONMENT=$2
-DB_HOSTNAME=$3
-N_WORKERS=$4
-N_THREADS_WORKER=$5
+DB_HOSTNAME=$2
+N_WORKERS=$3
+N_THREADS_WORKER=$4
+# This one is OPTIONAL
+ENVIRONMENT=$5
 j=$ALPS_APP_PE 
 
 
@@ -32,5 +33,10 @@ echo "Delay of $delay"
 sleep $delay
 
 adaptivemdworker $RUNNAME --sleep 2 --dbhost $DB_HOSTNAME --verbose > workers.$RUNNAME.$j.log
+
+if [[ ! -z $ENVIRONMENT ]]; then
+  echo "source deactivate"
+  source deactivate
+fi
 
 sleep 3
