@@ -1,0 +1,109 @@
+#!/bin/bash
+#PBS -A bip149
+#PBS -N admd
+#PBS -l nodes={nodes}
+#PBS -l walltime={hours}:{minutes}:00
+#PBS -e admd.stderr
+#PBS -o admd.stdout
+#PBS -l gres=atlas1
+
+
+echo -e "\n\nStarting an AdaptiveMD Job\n------------------------\n\n"
+
+#####################################################
+# Job setup, forward file limits for DB scalability #
+#####################################################
+export APRUN_XFER_LIMITS=1
+cd $PBS_O_WORKDIR
+
+## To use AdaptiveMD Environment
+ENVIRONMENT={environment}
+source $ADMD_ENV_ACTIVATE
+
+#source activate py27
+echo "Using this python:"
+which python
+echo "This is the adaptivemdworker used for the job"
+which adaptivemdworker
+pwd
+
+#####################################################
+#  AdaptiveMD Project Name of the run for workers   #
+#     must match project name in database           #
+#####################################################
+RUNNAME={project_name}
+SCRIPT_NAME={strategy}
+ADMD_SCRIPT=${{ADMD_JOBS}}scripts/$SCRIPT_NAME
+
+#####################################################
+#       Setting up compute Environment and Workers  #
+#####################################################
+#
+#  Node Usage:
+#
+#    1    : MongoDB Host Node
+#    N-1  : AdaptiveMD Workers
+#
+#
+#   - the n_workers and w_threads from jobmaker
+#     aren't actually used, they just print to
+#     fields in the shell script comments
+#
+N_NODES={nodes}
+N_WORKERS=$(($N_NODES-1))
+OMP_NUM_THREADS={threads}
+N_THREADS_WORKER=$(($OMP_NUM_THREADS-1))
+# later can calcultae with mpi workers
+#N_THREADS_WORKER={w_threads}
+#N_WORKERS={n_workers}
+#xport MPI_PER_NODE=$(($OMP_NUM_THREADS/$N_THREADS_WORKER))
+MPI_PER_NODE=1
+
+echo "Number of workers: $N_WORKERS"
+echo "Number of threads: $OMP_NUM_THREADS"
+
+#####################################################
+#              MongoDB Host Setup                   #
+#####################################################
+echo $ADMD_DB
+which mongod
+mkdir ${{ADMD_DB}}data/$RUNNAME.$N_WORKERS.db/
+aprun -n1 -N1 -d$OMP_NUM_THREADS ./startdb.sh $RUNNAME $N_WORKERS & MONGO_APID=$!
+echo $MONGO_APID
+# Must wait for mongo node to write hostname and start up
+sleep 15
+DB_HOSTNAME=`cat $N_WORKERS.hostname`
+echo "MongoDB Hostname for run with $N_WORKERS AdaptiveMDWorkers: $DB_HOSTNAME"
+
+###############################################################
+#       ADAPTIVEMD PROJECT
+###############################################################
+echo "Initializing project"
+python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P {platform} -p {prot} -m {all}
+###############################################################
+#       ADAPTIVEMD TASKS
+###############################################################
+echo "Starting Workflow for run '$RUNNAME' with Strategy Function:"
+echo $ADMD_SCRIPT
+python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -e $ENVIRONMENT -l {length} -k {minlength} -N {n_traj} -S {sampling_phase} -b {n_rounds} -x {n_ext} {mk_model} -p {prot} -m {all} & EVENT_PID=$!
+
+###############################################################
+#       ADAPTIVEMD WORKERS
+# launch workers who write stdout/err to job directory
+###############################################################
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER & WORKERS_APID=$!
+
+###############################################################
+#       FINISHING TOUCHES
+###############################################################
+deactivate
+
+echo "Done launching workers, now waiting"
+echo "Waiting for event scripts to terminate"
+wait "$EVENT_PID"
+echo "Waiting for workers to shut down"
+wait "$WORKERS_APID"
+echo "Going to shut down the database, event is finished"
+sleep 20
+kill "$MONGO_APID"
+wait

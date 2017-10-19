@@ -6,6 +6,7 @@ CWD=`pwd`
 
 ## Paths for different installer components
 INSTALL_CONDA=$PROJWORK/bip149/$USER/
+INSTALL_ADMD_ENV=$PROJWORK/bip149/$USER/
 
 # these ones saved to environment variables
 INSTALL_ADAPTIVEMD=$PROJWORK/bip149/$USER/
@@ -16,11 +17,12 @@ INSTALL_ADMD_DB=$PROJWORK/bip149/$USER/
 FOLDER_ADMD_DB=mongodb
 FOLDER_ADMD_DATA=admd
 FOLDER_ADMD_JOBS=admd
+FOLDER_ADMD_ENV=admd
 
 ## Options & Versions:
 ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
-ADAPTIVEMD_INSTALLMETHOD=install
+#ADAPTIVEMD_INSTALLMETHOD=install
 
 # This has given trouble !to only me! when loading
 # inside of a job on Titan, so currently
@@ -31,25 +33,12 @@ ADAPTIVEMD_INSTALLMETHOD=install
 CONDA_ENV_NAME=py27
 CONDA_ENV_VERSION=2.7
 CONDA_VERSION=2
-CONDA_PKG_VERSION=4.3.23
+ADMD_ENV_NAME=admdenv
+ADMD_ENV_PYTHON=2.7
 
-NUMPY_VERSION=1.12
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
 PYMONGO_VERSION=3.3
-
-# Application Package dependencies 
-ADMD_APP_PKG="pyyaml six ujson numpy=$NUMPY_VERSION"
-# Task Package dependencies 
-ADMD_TASK_PKG="openmm=$OPENMM_VERSION mdtraj pyemma"
-
-# CONDA tries to upgrade itself at every turn
-# - must stop it if installing in the outer conda
-# - inside an env, conda won't update so its ok
-if [[  -z "$CONDA_ENV_NAME" ]]; then
-  ADMD_APP_PKG+=" conda=$CONDA_PKG_VERSION"
-  ADMD_TASK_PKG+=" conda=$CONDA_PKG_VERSION"
-fi
 
 ###############################################################################
 #  Install MongoDB                                                            #
@@ -58,7 +47,7 @@ cd $INSTALL_ADMD_DB
 echo "Installing Mongo in: $INSTALL_ADMD_DB"
 curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-$MONGODB_VERSION.tgz
 tar -zxvf mongodb-linux-x86_64-$MONGODB_VERSION.tgz
-mkdir mongodb
+mkdir $FOLDER_ADMD_DB
 mv mongodb-linux-x86_64-$MONGODB_VERSION/ $FOLDER_ADMD_DB
 mkdir -p ${FOLDER_ADMD_DB}/data/db
 rm mongodb-linux-x86_64-$MONGODB_VERSION.tgz
@@ -74,6 +63,45 @@ echo "MongoDB daemon installed here: "
 which mongod
 
 ###############################################################################
+#  Install VirtualEnv for AdaptveMD Application                               #
+###############################################################################
+cd $INSTALL_ADMD_ENV
+mkdir $FOLDER_ADMD_ENV
+cd $FOLDER_ADMD_ENV
+ADMD_ENV=`pwd`/
+virtualenv $ADMD_ENV/$ADMD_ENV_NAME
+
+echo "export ADMD_ENV_ACTIVATE=${ADMD_ENV}$ADMD_ENV_NAME/bin/activate" >> ~/.bashrc
+
+source ~/.bashrc
+source $ADMD_ENV_ACTIVATE
+
+###############################################################################
+#   Install AdaptiveMD from git repo                                           #
+###############################################################################
+cd $INSTALL_ADAPTIVEMD
+# TODO 1) this is somewhat redundant with AdaptiveMD install
+#      - using `python setup.py install`, there is no check
+#        and installation of dependencies. installed as conda
+#        packages instead.
+#
+git clone https://github.com/$ADAPTIVEMD_VERSION
+cd adaptivemd
+pip install pyyaml
+pip install six
+# Otherwise six doesn't get added to site-packages
+pip install six --upgrade
+
+#deactivate
+#source ${ADMD_ENV}bin/activate
+
+pip install .
+python -c "import adaptivemd" || echo "something wrong with adaptivemd install"
+echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
+
+deactivate
+
+###############################################################################
 #  Install Miniconda                                                          #
 ###############################################################################
 cd $INSTALL_CONDA
@@ -85,12 +113,11 @@ source ~/.bashrc
 PATH=$CONDAPATH:$PATH
 
 ###############################################################################
-#  Install py27 Environment for AdaptiveMD                                    #
+#  Install py27 Environment for AdaptiveMD Tasks                              #
 ###############################################################################
 which conda
 conda config --append channels conda-forge
 conda config --append channels omnia
-conda install conda=$CONDA_PKG_VERSION
 
 if [[ ! -z "$CONDA_ENV_NAME" ]]; then
   echo "Creating and Activating new conda env: $CONDA_ENV_NAME"
@@ -101,32 +128,7 @@ fi
 rm Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
 
 ###############################################################################
-#   Install AdaptiveMD from git repo                                           #
-###############################################################################
-cd $INSTALL_ADAPTIVEMD
-git clone https://github.com/$ADAPTIVEMD_VERSION
-cd adaptivemd/
-git checkout $ADAPTIVEMD_BRANCH
-
-#conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj
-# TODO 1) this is somewhat redundant with AdaptiveMD install
-#      - using `python setup.py install`, there is no check
-#        and installation of dependencies. installed as conda
-#        packages instead.
-#
-# Required to parse install files
-#  (and package)
-echo "Installing these Packages in AdaptiveMD App Layer"
-echo $ADMD_APP_PKG
-conda install $ADMD_APP_PKG
-
-python setup.py $ADAPTIVEMD_INSTALLMETHOD
-
-python -c "import adaptivemd" || echo "something wrong with adaptivemd install"
-echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
-
-###############################################################################
-#   Install AdaptiveMD Task Stack                                           #
+#   Install AdaptiveMD Task Stack                                             #
 ###############################################################################
 # TODO 2) here is the default task stack with versions for Titan
 #      - with [admdjobs] it is installed in same env as adaptivemd
@@ -135,12 +137,10 @@ echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
 #        but... always install default task stack
 #               with specified or latest version
 #conda install openmm=$OPENMM_VERSION mdtraj pyemma 
-echo "Installing these Packages in AdaptiveMD Task Layer"
-echo $ADMD_TASK_PKG
-conda install $ADMD_TASK_PKG
+conda install numpy openmm=$OPENMM_VERSION mdtraj pyemma
 
 ###############################################################################
-#   Test AdaptiveMD Installation                                           #
+#   Test AdaptiveMD Installation                                              #
 ###############################################################################
 ## TODO 3) TEST AdaptiveMD
 #echo "Starting database for tests"
@@ -157,6 +157,8 @@ if [[ ! -z "$CONDA_ENV_NAME" ]]; then
   echo "Deactivating conda env: $CONDA_ENV_NAME"
   source deactivate
 fi
+
+module unload python
 
 ###############################################################################
 #   Now creating the Data Directory                                           #
@@ -176,7 +178,7 @@ echo "export ADMD_DATA=${INSTALL_ADMD_DATA}${FOLDER_ADMD_DATA}/" >> ~/.bashrc
 cd $INSTALL_ADMD_JOBS
 mkdir $FOLDER_ADMD_JOBS
 cd $FOLDER_ADMD_JOBS
-cp -r $CWD/jobs/ ./
+cp -r $CWD/jobs-2env/ ./jobs/
 echo "export ADMD_JOBS=${INSTALL_ADMD_JOBS}${FOLDER_ADMD_JOBS}/jobs/" >> ~/.bashrc
 source ~/.bashrc
 cd $CWD

@@ -1,25 +1,105 @@
 # ADMD Jobs
+
 ### Running AdaptiveMD on Titan
 
 #### Get this code from:
 
   http://github.com/jrossyra/admdjobs
  
-`admdjobs` should be placed somewhere long-term such as $HOME directory. It is intended to
-create files, folders, and data in working locations (PROJECTWORK and MEMBERWORK).
+`admdjobs` should be placed cloned to long-term storage such as $HOME directory. It is intended to
+create files, folders, and data in working locations (PROJECTWORK or MEMBERWORK).
 Check the install locations of the software components at the top of `install_admd.sh`,
 and install them by running this script. To get started, type `cd $ADMD_JOBS` and use
 `jobmaker.py` as described below.
 
-
-## ADMD Environment on Titan
+## Install:
 
 ADMD is used to refer to the working layer employed for AdaptiveMD use. The
 structure of ADMD will depend on the layout of its 4 major components:
 * AdaptiveMD software package
 * MongoDB database
-* data directory
-* working areas
+* Data directory
+* Working areas
+
+Use `sh install_admd.linux.sh` from within `admdjobs/` and specify the appropriate install
+directories at the top of file (`INSTALL_MONGODB`, `INSTALL_ADAPTIVEMD`, etc).
+These install directories will be converted and saved in the user's `bashrc`
+for navigating later (ie `cd $ADMD_JOBS` to script or save some time).
+ADMD is run in a *compact* layout on Titan; the HPC job
+completely contains and executes all elements to run ADMD. So all 4
+components are specified, and set to be visible to compute nodes.
+
+
+## Usage:
+
+To deploy a job, use the jobmaker to specify the configuration and
+name used. WATCH THE JOBS to make sure they don't hang and waste time, or 
+very carefully specify the walltime. 
+The wait function is trickier because of the job layout necessary for Titan.
+The name will be used for the AdaptiveMD project and
+the HPC job that runs it.
+
+```bash
+python jobmaker.py [project_name] [options]
+```
+
+Type the option `--help` to see all the options available. Soon there will just be a
+configuration file option along with project name that can equivalently specify
+the setup since many options are going to be used at a time, every time.
+
+When creating a workflow, the total nodes will include all workers to run trajectory
+and analysis tasks, along with an additional node for the database host.
+
+#### Example:
+
+This example shows how to create a simple workflow.
+Because the entire workflow is contained in a job, a separate project
+is created for each run and the number of `adaptivemdworker` is used
+in the name for convenience. The number of nodes reserved for the job
+is this number plus 1, for the data server node.
+
+Create runnable job:
+
+```bash
+python jobmaker.py test01 ntl9 -e py27 --longts -n 12 -w 11 -N 10 -M -k 1000000 -l 500000 -b 1 -x 1  -S xplor_microstates -p 1000 -m 5000 -P CUDA -H 0 -W 45
+```
+
+* P: OpenMM platorm
+* S: Sampling method
+* e: Task conda environment
+* M: Modelling tasks on
+* n: n nodes
+* w: n workers
+* N: n trajectories
+* b: n max tasks
+* x: n rounds (of simulation task)
+* l: n steps (per simulation task)
+* k: n min steps per trajectory
+* p: stride for protein structure
+* m: stride for all atoms
+
+When this is run, a small message will printout ending with the
+relative path to the directory for new job. Navigate to the directory:
+
+```bash
+Reading job script template from:
+ jobpackage/admd_deployDBworkers_bundledevent.pbs.template
+Job will be located in directory:
+ jobs/SCALING10_0711/
+```
+
+```bash
+cd jobs/SCALING10_0711/
+```
+
+And submit the job:
+
+```bash
+qsub admd_job.pbs
+```
+
+
+## ADMD Environment on Titan
 
 The *working area* is `$ADMD_JOBS` when using the setup described for Titan, but is not clarified
 without a *layout*. It may be remote to the
@@ -38,14 +118,6 @@ for the database, one extra compute node is reserved as the data server. At
 job runtime, the database is created and run, and each `adaptivemdworker`
 subsequently connects. When hosted in a stable location, the database address
 can be written as a configuration option.
-
-Use `install_adaptivemd.sh` and specify the appropriate install
-directories at the top of file (`INSTALL_MONGODB`, `INSTALL_ADAPTIVEMD`, etc).
-These install directories will be converted and saved in the user's `bashrc`
-for navigating later (ie `cd $ADMD_JOBS` to script or save some time).
-ADMD is run in a *compact* layout on Titan; the HPC job
-completely contains and executes all elements to run ADMD. So all 4
-components are specified, and set to be visible to compute nodes.
 
 * $ADMD_JOBS - directory described below
 
@@ -86,70 +158,6 @@ operations.
                           subdirectories are named with `project_name`
                           argument given to jobmaker
 
-
-## Usage:
-
-To deploy a job, use the jobmaker to specify the configuration and
-name used. WATCH THE JOBS to make sure they don't hang and waste time, or 
-very carefully specify the walltime. 
-The wait function is trickier because of the job layout necessary for Titan.
-The name will be used for the AdaptiveMD project and
-the HPC job that runs it.
-
-```bash
-python jobmaker.py [project_name] [options]
-```
-
-Type this to see all the options available. Soon there will just be a
-configuration file option along with project name that can equivalently specify
-the setup since many options are going to be used at a time, every time.
-
-```bash
-python jobmaker.py --help
-```
-
-
-#### Example:
-
-This example shows how scaling runs were performed.
-Because the entire workflow is contained in a job, a separate project
-is created for each run and the number of `adaptivemdworker` is used
-in the name for convenience. The number of nodes reserved for the job
-is this number plus 1, for the data server node.
-
-Create runnable job:
-
-```bash
-python jobmaker.py SCALING10 -P CUDA -n 11 -w 10 -N 10 -x 1 -l 10000 -p 200 -m 1000
-```
-* P: platorm
-* n: n nodes
-* w: n workers
-* N: n trajectories
-* x: n extensions (per trajectory)
-* l: n steps (per simulation)
-* p: stride for protein structure
-* m: stride for all atoms
-
-When this is run, a small message will printout ending with the
-relative path to the directory for new job. Navigate to the directory:
-
-```bash
-Reading job script template from:
- jobpackage/admd_deployDBworkers_bundledevent.pbs.template
-Job will be located in directory:
- jobs/SCALING10_0711/
-```
-
-```bash
-cd jobs/SCALING10_0711/
-```
-
-And submit the job:
-
-```bash
-qsub admd_job.pbs
-```
 
 Again, BE SURE TO WATCH for the job completion. Typically, the workers
 will work and write their logs, and after they shut down the output
