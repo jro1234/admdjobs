@@ -41,7 +41,25 @@ def get_one(name_func):
             else: 
                 sf = _sampling_function 
              
-            for i,frame in enumerate(sf(project, number, *args)): 
+            sampled_frames = None
+
+            while not sampled_frames:
+
+                try:
+                    sampled_frames = sf(project, number, *args)
+
+                except Exception as e:
+                    print("Sampling was unsuccessful due to this error:")
+                    print(e)
+
+                    if sf == backup_sampling_function:
+                        print("This error must be fixed to generate sampled frames")
+                        return []
+
+                    else:
+                        sf = backup_sampling_function
+
+            for i,frame in enumerate(sampled_frames): 
                 trajectories.append( 
                     project.new_trajectory( 
                     frame, length[i], engine) 

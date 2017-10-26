@@ -59,7 +59,11 @@ def xplor_microstates(project, number=1):
     '''
 
     data, c = get_model(project)
+    # TODO verify axis 0 is the columns
+    # TODO dont' do above todo, but ...
+    #      do ceiling(average(rowcount, colcount)) as weight
     q = 1/np.sum(c, axis=1)
+    #q = 1/np.sum(c, axis=0)
     trajlist = list()
 
     # not a good method to get n_states
@@ -136,7 +140,9 @@ def get_model(project):
         #assert(isinstance(model, Model))
         data = model.data
         c = data['msm']['C']
+        # TODO verify axis 0 is the columns
         s =  np.sum(c, axis=1)
+        #s =  np.sum(c, axis=0)
         if 0 not in s:
             return data, c
 

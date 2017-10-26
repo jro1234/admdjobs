@@ -48,25 +48,17 @@ if __name__ == '__main__':
             ext = '-2'
 
         nm_engine = 'openmm' + ext
-        nm_modeller_1 = 'pyemma-ca' + ext
-        nm_modeller_2 = 'pyemma-ionic' + ext
+        nm_modeller = args.modeller + ext
 
         engine = project.generators[nm_engine]
-
-        if args.model:
-            modellers = list()
-            modellers.append(project.generators[nm_modeller_1])
-            modellers.append(project.generators[nm_modeller_2])
-
-        else:
-            modellers = None
+        modeller = project.generators[nm_modeller]
 
         start_time = time.time()
         print("TIMER Project add event {0:.5f}", time.time())
         project.add_event(strategy_function(
             project, engine, args.n_traj,
             args.n_ext, args.length,
-            modellers=modellers,
+            modeller=modeller,
             fixedlength=args.fixedlength,
             minlength=args.minlength,
             n_rounds=args.n_rounds,

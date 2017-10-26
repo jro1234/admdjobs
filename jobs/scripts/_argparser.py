@@ -22,9 +22,8 @@ def argparser():
         help="Number of trajectories to create",
         type=int, default=16)
 
-    parser.add_argument("-M","--model", dest="model",
-        help="Create a model each iteration",
-        action='store_true')
+    parser.add_argument("-M","--modeller", dest="modeller",
+        help="Create a model each iteration")
 
     parser.add_argument("-w","--n-workers", dest="n_workers",
         help="Number of workers in job",
@@ -104,6 +103,30 @@ def argparser():
     parser.add_argument("-H","--hours", dest="hours",
         help="Job hours of walltime",
         type=int, default=1)
+
+    parser.add_argument("--tica_lag",
+        help="TICA lag in frames",
+        type=int, default=25)
+
+    parser.add_argument("--tica_dim",
+        help="Number of TICA dimensions for clustering",
+        type=int, default=3)
+
+    parser.add_argument("--tica_stride",
+        help="TICA stride in frames",
+        type=int, default=5)
+
+    parser.add_argument("--clust_stride",
+        help="Clustering stride in frames",
+        type=int, default=5)
+
+    parser.add_argument("--msm_lag",
+        help="MSM lag in frames",
+        type=int, default=25)
+
+    parser.add_argument("--msm_states",
+        help="MISLEADING name, number of microstates for clustering",
+        type=int, default=50)
 
     parser.add_argument("-W","--minutes", dest="minutes",
         help="Job minutes of walltime",

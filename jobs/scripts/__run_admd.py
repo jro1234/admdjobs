@@ -1,4 +1,4 @@
-#!/usr/bin/env/python
+#!/usr/bin/env python
 
 '''
 This file contains strategy functions for running adaptivemd simulations
@@ -39,18 +39,23 @@ def print_project_work(project):
 
 
 def print_last_model(project):
+
     try:
         mdat = project.models.last.data
         print("Hopefully model prints below!")
         print("Model created using modeller:",
               project.models.last.name)
+
         print("attempted n_microstates: ",
               mdat['clustering']['k'])
+
         print("length of cluster populations row: ",
               len(mdat['msm']['C'][0]))
+
         print(mdat['msm'])
         print(mdat['msm']['P'])
         print(mdat['msm']['C'])
+
     except:
         print("tried to print model")
         pass
@@ -65,6 +70,7 @@ def randlength(n, incr, length, lengthvariance=0.2):
 
     return [int(length*(1+r)/incr)*incr
             for r in rand]
+
 
 
 def check_trajectory_minlength(project, minlength, n_steps=None,
@@ -93,7 +99,8 @@ def check_trajectory_minlength(project, minlength, n_steps=None,
         if xlength > n_steps / 2:
             tasks.append(t.extend(xlength))
             if environment:
-                tasks[-1].add_conda_env(environment, activate_prefix)
+                tasks[-1].add_conda_env(
+                    environment, activate_prefix)
 
     if n_run is not None and len(tasks) > n_run:
         tasks = tasks[:n_run]
@@ -101,7 +108,11 @@ def check_trajectory_minlength(project, minlength, n_steps=None,
     return tasks
 
 
-def model_task(project, modeller, margs, trajectories=None, environment=None, activate_prefix=None):
+
+def model_task(project, modeller, margs,
+               trajectories=None, environment=None,
+               activate_prefix=None):
+
     # model task goes last to ensure (on first one) that the
     # previous round of trajectories is done
     #print("Using these in the model:\n", list(project.trajectories))
@@ -121,11 +132,25 @@ def model_task(project, modeller, margs, trajectories=None, environment=None, ac
 
 
 
+#################################################################
+#                                                               #
+#   README for strategy_function                                #
+#                                                               #
+# This Function produces a workflow via dynamically generated   #
+# workloads. Each workload is a set of tasks, some trajectory   #
+# and possibly an analysis task.                                #
+#                                                               #
+# It is not robust and may not work if the arguments are not    #
+# 'internally consistent' or violate some expeectation of this  #
+# function.                                                     #
+#                                                               #
+#################################################################
 def strategy_function(project, engine, n_run, n_ext, n_steps,
-                   sampling_phase='xplor_microstates',
-                   modellers=None, fixedlength=True, longest=5000,
-                   continuing=True, minlength=None, activate_prefix=None,
-                   environment=None, n_rounds=0, **kwargs):
+                      sampling_phase='xplor_microstates',
+                      modeller=None, fixedlength=True,
+                      longest=5000, continuing=True, minlength=None,
+                      activate_prefix=None, environment=None,
+                      read_margs=True, n_rounds=0, **kwargs):
 
     # TODO once making sure this works
     #      move it down to import when used
@@ -319,11 +344,22 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
     #final_margs = dict(tica_stride=10, tica_lag=50, tica_dim=6,
     #    clust_stride=10, msm_states=100, msm_lag=5)
 
-    start_margs = dict(tica_stride=4, tica_lag=50, tica_dim=4,
-        clust_stride=1, msm_states=100, msm_lag=50)
+    if not read_margs:
+        print("THIS LINE SHOULD NOT PRINT!!")
+        # start_margs = dict(tica_stride=4, tica_lag=50, tica_dim=4,
+        #     clust_stride=1, msm_states=100, msm_lag=50)
 
-    final_margs = dict(tica_stride=4, tica_lag=50, tica_dim=6,
-        clust_stride=2, msm_states=400, msm_lag=25)
+        # final_margs = dict(tica_stride=4, tica_lag=50, tica_dim=6,
+        #     clust_stride=2, msm_states=400, msm_lag=25)
+    else:
+        # We are just sneakily using a function without importing it
+        # by using where it already is attached in the project...
+        # ...it parses the AdaptiveMD configuration file format
+        _margs = project.configurations.one.parse_configurations_file('margs.cfg')
+        start_margs = dict([ (k, int(v)) for k,v in _margs[project.name].items() ])
+
+        # TODO upgrade handling of margs...
+        final_margs = start_margs
 
     def update_margs():
         margs=dict()
@@ -419,12 +455,6 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
         print("\n----------- Extension #{0}".format(c_ext))
 
-        # super-strategic logic here!
-        if c_ext > n_ext/2:
-            modeller = modellers[1]
-        else:
-            modeller = modellers[0]
-
         # when c_ext == n_ext, we just wanted
         # to use check_trajectory_minlength above
         if c_ext < n_ext and not c.done:
@@ -484,9 +514,6 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
     # we should not arrive here until the final round
     # of extensions are queued and at least one of them
     # is complete.
-    # IF ARRIVING HERE EARLY this function can ruin
-    # whatever work is going on if it is acceptable for
-    # the workers to be idling...
     def all_done():
         '''
         This function scavenges project for idle workers.
@@ -563,7 +590,7 @@ def init_project(p_name, sys_name, m_freq, p_freq,
 
         # only works if filestructure is preserved as described in 'jro_ntl9.ipynb'
         # and something akin to job script in 'admd_workers.pbs' is used
-        f_base = 'file:///lustre/atlas/proj-shared/bip149/jrossyra/adaptivemd/examples/files/{0}/'.format(sys_name)
+        f_base = 'file:///$ADAPTIVEMD/examples/files/{0}/'.format(sys_name)
 
         f_structure = File(f_base + f_name).load()
 

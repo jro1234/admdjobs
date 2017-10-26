@@ -36,6 +36,7 @@ pwd
 #     must match project name in database           #
 #####################################################
 RUNNAME={project_name}
+
 SCRIPT_NAME={strategy}
 ADMD_SCRIPT=${{ADMD_JOBS}}scripts/$SCRIPT_NAME
 
@@ -55,6 +56,20 @@ ADMD_SCRIPT=${{ADMD_JOBS}}scripts/$SCRIPT_NAME
 #
 N_NODES={nodes}
 N_WORKERS=$(($N_NODES-1))
+N_TRAJ=$(($N_NODES-2))
+
+NM_SYSTEM={system_name}
+PLATFORM={platform}
+MIN_TRAJLENGTH={minlength}
+TASK_TRAJLENGTH={length}
+P_FRAMES={prot}
+M_FRAMES={all}
+N_ROUND={n_rounds}
+N_EXT={n_ext}
+NM_MODELLER={modeller}
+FUNC_SAMPLING={sampling_phase}
+LONGTS={longts}
+
 OMP_NUM_THREADS={threads}
 N_THREADS_WORKER=$(($OMP_NUM_THREADS-1))
 # later can calcultae with mpi workers
@@ -67,49 +82,62 @@ echo "Number of workers: $N_WORKERS"
 echo "Number of threads: $OMP_NUM_THREADS"
 
 #####################################################
-#              MongoDB Host Setup                   #
+#####################################################
+#####           MongoDB Host Setup              #####
+#####################################################
 #####################################################
 echo $ADMD_DB
 which mongod
-mkdir ${{ADMD_DB}}data/$RUNNAME.$N_WORKERS.db/
+
+mkdir ${{ADMD_DB}}data/$RUNNAME.db/
 aprun -n1 -N1 -d$OMP_NUM_THREADS ./startdb.sh $RUNNAME $N_WORKERS & MONGO_APID=$!
 echo $MONGO_APID
 # Must wait for mongo node to write hostname and start up
 sleep 15
-DB_HOSTNAME=`cat $N_WORKERS.hostname`
-echo "MongoDB Hostname for run with $N_WORKERS AdaptiveMDWorkers: $DB_HOSTNAME"
+DB_HOSTNAME=`cat $RUNNAME.hostname`
+echo "MongoDB Hostname for $RUNNAME: $DB_HOSTNAME"
 
-###############################################################
-#       ADAPTIVEMD PROJECT
-###############################################################
+#####################################################
+#####################################################
+#####           ADAPTIVEMD PROJECT              #####
+#####################################################
+#####################################################
 echo "Initializing project"
-python $ADMD_SCRIPT $RUNNAME {system_name} --init_only --dbhost $DB_HOSTNAME -P {platform} -p {prot} -m {all}
-###############################################################
-#       ADAPTIVEMD TASKS
-###############################################################
+python $ADMD_SCRIPT $RUNNAME $NM_SYSTEM --init_only --dbhost $DB_HOSTNAME -P $PLATFORM -p $P_FRAMES -m $M_FRAMES
+
+#####################################################
+#####################################################
+#####           ADAPTIVEMD TASKS                #####
+#####################################################
+#####################################################
 echo "Starting Workflow for run '$RUNNAME' with Strategy Function:"
 echo $ADMD_SCRIPT
-python $ADMD_SCRIPT $RUNNAME {system_name} --dbhost $DB_HOSTNAME {longts} -e $ENVIRONMENT -l {length} -k {minlength} -N {n_traj} -S {sampling_phase} -b {n_rounds} -x {n_ext} {mk_model} -p {prot} -m {all} & EVENT_PID=$!
+python $ADMD_SCRIPT $RUNNAME $NM_SYSTEM --dbhost $DB_HOSTNAME $LONGTS -e $ENVIRONMENT -l $TASK_TRAJLENGTH -k $MIN_TRAJLENGTH -N $N_TRAJ -S $FUNC_SAMPLING -b $N_ROUND -x $N_EXT -M $NM_MODELLER -p $P_FRAMES -m $M_FRAMES & EVENT_PID=$!
 
 ###############################################################
 #       ADAPTIVEMD WORKERS
 # launch workers who write stdout/err to job directory
 ###############################################################
-aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER $ENVIRONMENT & WORKERS_APID=$!
+aprun -n$N_WORKERS -N$MPI_PER_NODE -d$N_THREADS_WORKER ./startworker.sh $RUNNAME $DB_HOSTNAME $N_WORKERS $N_THREADS_WORKER $ENVIRONMENT 2> $RUNNAME.err 1> $RUNNAME.out & WORKERS_APID=$!
 
 ###############################################################
 #       FINISHING TOUCHES
 ###############################################################
+echo "Done launching workers, now waiting"
+echo "Waiting for event scripts to terminate"
+wait "$EVENT_PID"
+
+echo "Waiting for workers to shut down"
+wait "$WORKERS_APID"
+sleep 10
+
+echo "Going to shut down the database, event is finished"
+kill "$MONGO_APID"
+sleep 10
+
 if [[ ! -z "$ENVIRONMENT" ]]; then
   echo "source deactivate"
   source deactivate
 fi
-echo "Done launching workers, now waiting"
-echo "Waiting for event scripts to terminate"
-wait "$EVENT_PID"
-echo "Waiting for workers to shut down"
-wait "$WORKERS_APID"
-echo "Going to shut down the database, event is finished"
-sleep 20
-kill "$MONGO_APID"
+
 wait
