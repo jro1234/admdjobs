@@ -13,7 +13,7 @@ them to a runnable form, ie trajectory objects.
 
 def get_one(name_func): 
 
-    name_backup_func = 'random_restart'
+    name_backup_func = 'random_sampling'
  
     _sampling_function = getattr(sampling_functions, name_func)
     print("Retrieved sampling function: ", _sampling_function) 

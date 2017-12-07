@@ -2,7 +2,8 @@
 #PBS -A bip149
 #PBS -N admd
 #PBS -l nodes={nodes}
-#PBS -l walltime={hours}:{minutes}:00
+##{regular}#PBS -l walltime={hours}:{minutes}:00
+##{long}#PBS -l walltime={hours}:{minutes}:00
 #PBS -e admd.stderr
 #PBS -o admd.stdout
 #PBS -l gres=atlas1
@@ -22,6 +23,7 @@ cd $PBS_O_WORKDIR
 # before we start doing other stuff in this job since
 # these aren't moved at the end of a job.
 max=0
+islongjob=false
 
 for dir in ./*
 do
@@ -200,6 +202,7 @@ wait
 mv *log *name *err *out $nextround
 
 stopping=false
+longjob=false
 for file in ./*
 do
   if [[ -f $file ]];
@@ -207,15 +210,29 @@ do
     if [[ $file == *"stopjob"* ]]
     then
       stopping=true
+    elif [[ $file == *"longjob"* ]]
+    then
+      echo "Next round will be a long job so the"
+      echo "model task has time to complete!"
+      longjob=true
+      longjobfile=$file
     fi
   fi
 done
 
+
 if [ $stopping = false ]
 then
   echo "Continuing with another job"
-  qsub admd_titan_job.pbs
+  if [ $longjob = false ]
+  then
+    qsub admd_titan_job.pbs
+  else
+    qsub admd_titan_job.long.pbs
+    rm $longjobfile
+  fi
 else
   echo 'Found a "stopjob" file, not submitting another job'
 fi
+
 

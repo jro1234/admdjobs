@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
+
 '''
 This file contains strategy functions for running adaptivemd simulations
 and project initializing function 'init_project'.
 
 '''
 
+
 from __future__ import print_function
 import time
+
+import os
 
 import sampling_interface
 
@@ -29,10 +33,10 @@ class counter(object):
 
 
 def print_project_work(project):
-    print("Project models\n - Number: {n_model}\n"
+    print(project.name, "Project models\n - Number: {n_model}\n"
           .format(n_model=len(project.models)))
 
-    print("Project trajectories\n - Number: {n_traj}\n - Lengths:\n{lengths}\n"
+    print(project.name, "Project trajectories\n - Number: {n_traj}\n - Lengths:\n{lengths}\n"
           .format(n_traj=len(project.trajectories),
                   lengths=[t.length for t in project.trajectories]))
 
@@ -42,22 +46,22 @@ def print_last_model(project):
 
     try:
         mdat = project.models.last.data
-        print("Hopefully model prints below!")
-        print("Model created using modeller:",
+        print(project.name, "Hopefully model prints below!")
+        print(project.name, "Model created using modeller:",
               project.models.last.name)
 
-        print("attempted n_microstates: ",
+        print(project.name, "attempted n_microstates: ",
               mdat['clustering']['k'])
 
-        print("length of cluster populations row: ",
+        print(project.name, "length of cluster populations row: ",
               len(mdat['msm']['C'][0]))
 
-        print(mdat['msm'])
-        print(mdat['msm']['P'])
-        print(mdat['msm']['C'])
+        print(project.name, mdat['msm'])
+        print(project.name, mdat['msm']['P'])
+        print(project.name, mdat['msm']['C'])
 
     except:
-        print("tried to print model")
+        print(project.name, "tried to print model")
         pass
 
 
@@ -115,7 +119,7 @@ def model_task(project, modeller, margs,
 
     # model task goes last to ensure (on first one) that the
     # previous round of trajectories is done
-    #print("Using these in the model:\n", list(project.trajectories))
+    #print(project.name, "Using these in the model:\n", list(project.trajectories))
     if trajectories is None:
         trajectories = project.trajectories
 
@@ -125,8 +129,8 @@ def model_task(project, modeller, margs,
 
     project.queue(mtask)
 
-    print("Queued Modelling Task")
-    print("Using these modeller arguments:\n",margs)
+    print(project.name, "Queued Modelling Task")
+    print(project.name, "Using these modeller arguments:\n",margs)
 
     return mtask
 
@@ -161,11 +165,11 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
     if n_rounds:
         assert(n_rounds > 0)
-        print("Going to do n_rounds:  ", c.n)
+        print(project.name, "Going to do n_rounds:  ", c.n)
 
     # PREPARATION - Preprocess task setups
-    print("Using MD Engine: ", engine, engine.name)#, project.generators[engine.name].__dict__)
-    print("Using fixed length? ", fixedlength)
+    print(project.name, "Using MD Engine: ", engine, engine.name)#, project.generators[engine.name].__dict__)
+    print(project.name, "Using fixed length? ", fixedlength)
 
     lengthvariance=0.2
 
@@ -198,25 +202,25 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
             project.queue(tasks)
             c.increment()
 
-        print("Number of tasks: ", len(tasks))
-        print("Queued First Tasks")
-        print("Trajectory lengths were: {0}"
+        print(project.name, "Number of tasks: ", len(tasks))
+        print(project.name, "Queued First Tasks")
+        print(project.name, "Trajectory lengths were: {0}"
               .format(', '.join([str(rb) for rb in randbreak])))
 
         yield lambda: any([ta.is_done() for ta in tasks])
 
-        print("First Tasks are done")
+        print(project.name, "First Tasks are done")
 
     else:
         notfirsttime = True
 
 
-    print("Starting Trajectory Extensions")
+    print(project.name, "Starting Trajectory Extensions")
 
     def model_extend(modeller, randbreak, mtask=None, c=None):
 
-        #print("c_ext is ", c_ext, "({0})".format(n_ext))
-        #print("length of extended is: ", len(extended))
+        #print(project.name, "c_ext is ", c_ext, "({0})".format(n_ext))
+        #print(project.name, "length of extended is: ", len(extended))
 
         # FIRST workload including a model this execution
         if c_ext == 0:
@@ -239,7 +243,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                 #trajectories = project.new_trajectory(engine['pdb_file'],
                 #                                      engine, n_steps, n_run-1)
 
-                #print(trajectories)
+                #print(project.name, trajectories)
                 if not n_rounds or not c.done:
                     [tasks.append(t.run()) for t in trajectories]
                     if environment:
@@ -258,15 +262,15 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     #    extension, as long as its a fresh
                     #    project.
                     if notfirsttime or len(project.trajectories) >= n_run:
-                        print("adding first/next modeller task")
+                        print(project.name, "adding first/next modeller task")
                         mtask = model_task(project, modeller, margs, environment=environment, activate_prefix=activate_prefix)
                         tasks.append(mtask)
                         waiting = False
                     else:
                         time.sleep(3)
 
-            #print(tasks)
-            #print("First Extensions' status':\n", [ta.state for ta in tasks])
+            #print(project.name, tasks)
+            #print(project.name, "First Extensions' status':\n", [ta.state for ta in tasks])
             return any([ta.is_done() for ta in tasks[:-1]])
 
         # LAST workload in this execution
@@ -279,17 +283,17 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     mtask = model_task(project, modeller, margs, environment=environment, activate_prefix=activate_prefix)
                     tasks.append(mtask)
 
-                print("Queueing final extensions after modelling done")
-                print("Randbreak: \n", randbreak)
+                print(project.name, "Queueing final extensions after modelling done")
+                print(project.name, "Randbreak: \n", randbreak)
                 unrandbreak = [2*n_steps - rb for rb in randbreak]
                 unrandbreak.sort()
                 unrandbreak.reverse()
-                print("Unrandbreak: \n", unrandbreak)
+                print(project.name, "Unrandbreak: \n", unrandbreak)
 
                 trajectories = sampling_function(project, engine, unrandbreak, n_run)
                 #trajectories = project.new_ml_trajectory(engine, unrandbreak, n_run, randomly)
 
-                #print(trajectories)
+                #print(project.name, trajectories)
                 [tasks.append(t.run()) for t in trajectories]
                 if environment:
                     [ta.add_conda_env(environment, activate_prefix) for ta in tasks]
@@ -308,7 +312,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
             #    round of modelled trajs along
             #    with mtask
             if len(tasks) == 0:
-                print("Queueing new round of modelled trajectories")
+                print(project.name, "Queueing new round of modelled trajectories")
                 trajectories = sampling_function(project, engine, n_steps, n_run)
                 #trajectories = project.new_ml_trajectory(engine, n_steps, n_run, randomly)
 
@@ -331,21 +335,15 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     return any([ta.is_done() for ta in tasks])
 
             else:
-                #print("not restarting with existing tasks")
+                #print(project.name, "not restarting with existing tasks")
                 return any([ta.is_done() for ta in tasks])
 
     c_ext = 0
     mtask = None
     frac_ext_final_margs = 0.75
 
-    #start_margs = dict(tica_stride=10, tica_lag=50, tica_dim=4,
-    #    clust_stride=10, msm_states=50, msm_lag=5)
-     
-    #final_margs = dict(tica_stride=10, tica_lag=50, tica_dim=6,
-    #    clust_stride=10, msm_states=100, msm_lag=5)
-
     if not read_margs:
-        print("THIS LINE SHOULD NOT PRINT!!")
+        print(project.name, "THIS LINE SHOULD NOT PRINT!!")
         # start_margs = dict(tica_stride=4, tica_lag=50, tica_dim=4,
         #     clust_stride=1, msm_states=100, msm_lag=50)
 
@@ -356,7 +354,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         # by using where it already is attached in the project...
         # ...it parses the AdaptiveMD configuration file format
         _margs = project.configurations.one.parse_configurations_file('margs.cfg')
-        start_margs = dict([ (k, int(v)) for k,v in _margs[project.name].items() ])
+        _key = project.name if project.name in _margs.keys() else 'all'
+
+        start_margs = dict([ (k, int(v)) for k,v in _margs[_key].items() ])
 
         # TODO upgrade handling of margs...
         final_margs = start_margs
@@ -385,13 +385,18 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
     mtime = 0
     mtimes = list()
+    # these will be redefined (repeatedly) in the control loop
+    # need to declare the task lists now incase some of the
+    # the control structure is skipped.
+    tasks = list()
+    xtasks = list()
     # Start of CONTROL LOOP
     # when on final c_ext ( == n_ext), will
     # grow trajs to minlength before
     # strategy terminates
     while c_ext <= n_ext and (not n_rounds or not c.done):
 
-        print("\n\n-------------------------------\nChecking Extension Lengths")
+        print(project.name, "\n\n-------------------------------\nChecking Extension Lengths")
 
         done = False
         lastcheck = True
@@ -402,7 +407,8 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
             print_project_work(project)
 
-            print("looking for too-short trajectories")
+            print(project.name, "looking for too-short trajectories")
+
             if c.done:
                 xtasks = list()
             else:
@@ -430,21 +436,34 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
             for removal in removals:
                 trajectories.remove(removal)
 
-            if len(trajectories) == n_run and priorext < n_run:
-                print("Have full width of extensions")
-                c.increment()
+            if len(trajectories) == n_run:
+
+                # note this won't work with variable length
+                # trajectories, ie randlength=True
+                if all(map(lambda x: x[1].trajectory.length == minlength, trajectories)):
+                    
+                    if 'admd_titan_job.long.pbs' in os.listdir(os.getcwd()):
+                        os.system("touch longjob")
+
+
+                if priorext < n_run:
+                    print(project.name, "Have full width of extensions")
+                    c.increment()
+
 
             # setting this to look at next round
             priorext = len(trajectories)
+            print(project.name, "XTRAJ LENGTHS ({0}, {1}):".format(priorext, n_run))
+            [print(x[1].trajectory.length) for x in trajectories]
 
             if len(trajectories) == 0:
                 if lastcheck:
-                    print("Extensions last check")
+                    print(project.name, "Extensions last check")
                     lastcheck = False
                     time.sleep(15)
 
                 else:
-                    print("Extensions are done")
+                    print(project.name, "Extensions are done")
                     done = True
 
             else:
@@ -453,7 +472,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
 
                 time.sleep(15)
 
-        print("\n----------- Extension #{0}".format(c_ext))
+        print(project.name, "\n----------- Extension #{0}".format(c_ext))
 
         # when c_ext == n_ext, we just wanted
         # to use check_trajectory_minlength above
@@ -464,7 +483,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
             if modeller:
                 margs = update_margs()
 
-                print("Extending project with modeller")
+                print(project.name, "Extending project with modeller")
                 tasks = list()
 
                 if mtask is None:
@@ -472,9 +491,9 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     mtime -= time.time()
                     yield lambda: model_extend(modeller, randbreak, c=c)
 
-                    print("Set a current modelling task")
+                    print(project.name, "Set a current modelling task")
                     mtask = tasks[-1]
-                    print("First model task is: ", mtask)
+                    print(project.name, "First model task is: ", mtask)
 
                 # TODO don't assume mtask not None means it
                 #      has is_done method. outer loop needs
@@ -484,22 +503,22 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                     mtime += time.time()
                     mtimes.append(mtime)
                     mtime = -time.time()
-                    print("Current modelling task is done")
-                    print("It took {0} seconds".format(mtimes[-1]))
+                    print(project.name, "Current modelling task is done")
+                    print(project.name, "It took {0} seconds".format(mtimes[-1]))
                     c_ext += 1
 
                     yield lambda: model_extend(modeller, randbreak, mtask, c=c)
 
                     print_last_model(project)
                     mtask = tasks[-1]
-                    print("Set a new current modelling task")
+                    print(project.name, "Set a new current modelling task")
 
                 elif not mtask.is_done():
-                    print("Continuing trajectory tasks, waiting on model")
+                    print(project.name, "Continuing trajectory tasks, waiting on model")
                     yield lambda: model_extend(modeller, randbreak, mtask, c=c)
 
                 else:
-                    print("Not sure how we got here")
+                    print(project.name, "Not sure how we got here")
                     pass
 
             # don't currently have a modeller-less workload function
@@ -510,6 +529,11 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         # need to increment c_ext to exit the loop
         else:
             c_ext += 1
+            # This line forces a wait if we shot through above
+            # loops to submit only 1 round of tasks, otherwise
+            # the logic below can signal a shutdown if the
+            # workers are a bit lagged compared to this loop.
+            yield lambda: any([ta.is_done() for ta in tasks+xtasks])
 
     # we should not arrive here until the final round
     # of extensions are queued and at least one of them
@@ -521,7 +545,7 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
         Returns function that returns True when all workers
         have been shut down.
         '''         
-        #print("Checking if all done")
+        #print(project.name, "Checking if all done")
         idle_time = 20
         for w in project.workers:
             if w.state not in {'down','dead'}:
@@ -542,23 +566,23 @@ def strategy_function(project, engine, n_run, n_ext, n_steps,
                      for w in project.workers
                   ])
 
-    print("Waiting for all done")
+    print(project.name, "Waiting for all done")
     workers = list()
     yield lambda: all_done()
     time.sleep(5)
 
-    print("Simulation Event Finished")
+    print(project.name, "Simulation Event Finished")
 
 
 
-def init_project(p_name, sys_name, m_freq, p_freq,
-                 platform, dbhost=None, w_threads=None):
+def init_project(p_name, sys_name=None, m_freq=None, p_freq=None,
+                 platform=None, dbhost=None, w_threads=None):
 #def init_project(p_name, **freq):
 
     from adaptivemd import Project
 
     #if p_name in Project.list(): 
-    #    print("Deleting existing version of this test project") 
+    #    print(project.name, "Deleting existing version of this test project") 
     #    Project.delete(p_name)
 
     if dbhost is not None:
@@ -567,7 +591,7 @@ def init_project(p_name, sys_name, m_freq, p_freq,
     project = Project(p_name)
 
     if project.name in Project.list():
-        print("Project {0} exists, reading it from database"
+        print(project.name, "Project {0} exists, reading it from database"
               .format(project.name))
 
     else:
@@ -603,7 +627,7 @@ def init_project(p_name, sys_name, m_freq, p_freq,
         sim_args = '-r -p {0}'.format(platform)
 
         if platform == 'CPU':
-            print("Using CPU simulation platform with {0} threads per worker"
+            print(project.name, "Using CPU simulation platform with {0} threads per worker"
                   .format(w_threads))
 
             sim_args += ' --cpu-cpu-threads {0}'.format(w_threads)

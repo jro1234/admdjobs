@@ -40,8 +40,8 @@ def argparser():
         help="Flag for 5fs timesteps",
         action='store_true')
 
-    parser.add_argument("-l","--length",
-        help="Length of trajectory segments in frames",
+    parser.add_argument("-l","--length", nargs='+',
+        help="Length of trajectory segments in frames\n - give a 2nd length to create a longer job\n    for rounds that include a model task",
         type=int, default=100)
 
     parser.add_argument("-b","--n_rounds",

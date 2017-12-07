@@ -61,7 +61,11 @@ is this number plus 1, for the data server node.
 Create runnable job:
 
 ```bash
-python jobmaker.py test01 ntl9 -e py27 --longts -n 12 -w 11 -N 10 -M -k 1000000 -l 500000 -b 1 -x 1  -S xplor_microstates -p 1000 -m 5000 -P CUDA -H 0 -W 45
+python jobmaker.py test21 ntl9 -e py27 --longts -n 12 -w 11 -N 10 -M pyemma-ionic -k 100000 -l 50000 -b 2 -x 1 -S explore_microstates -p 1000 -m 5000 -P CUDA -H 0 -W 10
+```
+For the Demo Run:
+```
+python jobmaker.py demo-xm ntl9 -e py27 --longts -n 12 -w 11 -N 10 -M pyemma-ionic -l 50000 -k 100000 -b 1 -x 1  -S explore_microstates -p 10000 -m 50000 -P CUDA -H 0 -W 30
 ```
 
 * P: OpenMM platorm
@@ -71,7 +75,7 @@ python jobmaker.py test01 ntl9 -e py27 --longts -n 12 -w 11 -N 10 -M -k 1000000 
 * n: n nodes
 * w: n workers
 * N: n trajectories
-* b: n max tasks
+* b: n max tasks per job
 * x: n rounds (of simulation task)
 * l: n steps (per simulation task)
 * k: n min steps per trajectory

@@ -22,21 +22,24 @@ ADAPTIVEMD_VERSION=jrossyra/adaptivemd.git
 ADAPTIVEMD_BRANCH=rp_integration
 ADAPTIVEMD_INSTALLMETHOD=install
 
-# This has given trouble !to only me! when loading
-# inside of a job on Titan, so currently
-# we have everything install under the
-# *root* conda
+# It would also be fine to use the root CONDA
+# environment if there is no other use of it.
 #CONDA_ENV_NAME=
-#CONDA_ENV_VERSION=
+#CONDA_ENV_PYTHON=
 CONDA_ENV_NAME=py27
-CONDA_ENV_VERSION=2.7
+CONDA_ENV_PYTHON=2.7
 CONDA_VERSION=2
+# TODO
+# AdaptiveMD imports EXTREMELY slowly in
+# some versions of CONDA, will resolve
+# eventually but for now this version
+# works fine.
 CONDA_PKG_VERSION=4.3.23
 
 NUMPY_VERSION=1.12
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
-PYMONGO_VERSION=3.3
+PYMONGO_VERSION=3.5
 
 # Application Package dependencies 
 ADMD_APP_PKG="pyyaml six ujson numpy=$NUMPY_VERSION"
@@ -46,7 +49,7 @@ ADMD_TASK_PKG="openmm=$OPENMM_VERSION mdtraj pyemma"
 # CONDA tries to upgrade itself at every turn
 # - must stop it if installing in the outer conda
 # - inside an env, conda won't update so its ok
-if [[  -z "$CONDA_ENV_NAME" ]]; then
+if [[ ! -z "$CONDA_ENV_NAME" ]]; then
   ADMD_APP_PKG+=" conda=$CONDA_PKG_VERSION"
   ADMD_TASK_PKG+=" conda=$CONDA_PKG_VERSION"
 fi
@@ -54,93 +57,83 @@ fi
 ###############################################################################
 #  Install MongoDB                                                            #
 ###############################################################################
-cd $INSTALL_ADMD_DB
-echo "Installing Mongo in: $INSTALL_ADMD_DB"
-curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-$MONGODB_VERSION.tgz
-tar -zxvf mongodb-linux-x86_64-$MONGODB_VERSION.tgz
-mkdir mongodb
-mv mongodb-linux-x86_64-$MONGODB_VERSION/ $FOLDER_ADMD_DB
-mkdir -p ${FOLDER_ADMD_DB}/data/db
-rm mongodb-linux-x86_64-$MONGODB_VERSION.tgz
-echo "# APPENDING PATH VARIABLE with AdaptiveMD Environment" >> ~/.bashrc
-echo "export ADMD_DB=${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/" >> ~/.bashrc
-echo "export PATH=${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/mongodb-linux-x86_64-$MONGODB_VERSION/bin/:\$PATH" >> ~/.bashrc
-echo "Done installing Mongo, appended PATH with mongodb bin folder"
-
-# Mongo should default to using /tmp/mongo-27017.sock as socket
-echo -e "net:\n   unixDomainSocket:\n      pathPrefix: ${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/data/\n   bindIp: 0.0.0.0" > ${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/mongo.cfg
-source ~/.bashrc
-echo "MongoDB daemon installed here: "
+if [ ! -x "$(command -v mongod)" ]; then
+  cd $INSTALL_ADMD_DB
+  echo "Installing Mongo in: $INSTALL_ADMD_DB"
+  curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  tar -zxvf mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  mkdir mongodb
+  mv mongodb-linux-x86_64-$MONGODB_VERSION/ $FOLDER_ADMD_DB
+  mkdir -p ${FOLDER_ADMD_DB}/data/db
+  rm mongodb-linux-x86_64-$MONGODB_VERSION.tgz
+  echo "# APPENDING PATH VARIABLE with AdaptiveMD Environment" >> ~/.bashrc
+  echo "export ADMD_DB=${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/" >> ~/.bashrc
+  echo "export PATH=${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/mongodb-linux-x86_64-$MONGODB_VERSION/bin/:\$PATH" >> ~/.bashrc
+  echo "Done installing Mongo, appended PATH with mongodb bin folder"
+  # Mongo should default to using /tmp/mongo-27017.sock as socket
+  echo -e "net:\n   unixDomainSocket:\n      pathPrefix: ${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/data/\n   bindIp: 0.0.0.0" > ${INSTALL_ADMD_DB}${FOLDER_ADMD_DB}/mongo.cfg
+  source ~/.bashrc
+  echo "MongoDB daemon installed here: "
+else
+  echo "Found MongoDB already installed at: "
+fi
 which mongod
 
 ###############################################################################
 #  Install Miniconda                                                          #
 ###############################################################################
-cd $INSTALL_CONDA
-curl -O https://repo.continuum.io/miniconda/Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
-bash Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh -p ${INSTALL_CONDA}miniconda$CONDA_VERSION/
-echo "Miniconda conda executable here: "
-echo "export CONDAPATH=${INSTALL_CONDA}miniconda$CONDA_VERSION/bin" >> ~/.bashrc
-source ~/.bashrc
-PATH=$CONDAPATH:$PATH
+if [ -z ${CONDAPATH+x} ]; then
+  cd $INSTALL_CONDA
+  curl -O https://repo.continuum.io/miniconda/Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
+  bash Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh -p ${INSTALL_CONDA}miniconda$CONDA_VERSION/
+  echo "Miniconda conda executable here: "
+  echo "export CONDAPATH=${INSTALL_CONDA}miniconda$CONDA_VERSION/bin" >> ~/.bashrc
+  source ~/.bashrc
+  PATH=$CONDAPATH:$PATH
+  conda config --append channels conda-forge
+  conda config --append channels omnia
+  conda install conda=$CONDA_PKG_VERSION
+  rm Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
+fi
 
 ###############################################################################
-#  Install py27 Environment for AdaptiveMD                                    #
+#  Install Conda Environment for AdaptiveMD                                   #
 ###############################################################################
 which conda
-conda config --append channels conda-forge
-conda config --append channels omnia
-conda install conda=$CONDA_PKG_VERSION
-
 if [[ ! -z "$CONDA_ENV_NAME" ]]; then
-  echo "Creating and Activating new conda env: $CONDA_ENV_NAME"
-  conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_VERSION
+  ENVS=`$CONDAPATH/conda env list`
+  if ! echo "$ENVS" | grep -q "$CONDA_ENV_NAME"; then
+    echo "Creating and Activating new conda env: $CONDA_ENV_NAME"
+    conda create -n $CONDA_ENV_NAME python=$CONDA_ENV_PYTHON
+  fi
   source $CONDAPATH/activate $CONDA_ENV_NAME
 fi
 
-rm Miniconda$CONDA_VERSION-latest-Linux-x86_64.sh
+###############################################################################
+#   Install AdaptiveMD from git repo                                          #
+###############################################################################
+if [ ! -d "$INSTALL_ADAPTIVEMD/adaptivemd" ]; then
+  cd $INSTALL_ADAPTIVEMD
+  git clone https://github.com/$ADAPTIVEMD_VERSION
+  cd adaptivemd/
+  git checkout $ADAPTIVEMD_BRANCH
+  echo "Installing these Packages in AdaptiveMD Application Environment"
+  echo $ADMD_APP_PKG
+  conda install $ADMD_APP_PKG
+  python setup.py $ADAPTIVEMD_INSTALLMETHOD
+  python -W ignore -c "import adaptivemd" || echo "something wrong with adaptivemd install"
+  echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
+fi
 
 ###############################################################################
-#   Install AdaptiveMD from git repo                                           #
+#   Install AdaptiveMD Task Stack in Application Environment                  #
 ###############################################################################
-cd $INSTALL_ADAPTIVEMD
-git clone https://github.com/$ADAPTIVEMD_VERSION
-cd adaptivemd/
-git checkout $ADAPTIVEMD_BRANCH
-
-#conda install ujson pyyaml numpy pymongo=$PYMONGO_VERSION pyemma openmm=$OPENMM_VERSION mdtraj
-# TODO 1) this is somewhat redundant with AdaptiveMD install
-#      - using `python setup.py install`, there is no check
-#        and installation of dependencies. installed as conda
-#        packages instead.
-#
-# Required to parse install files
-#  (and package)
-echo "Installing these Packages in AdaptiveMD App Layer"
-echo $ADMD_APP_PKG
-conda install $ADMD_APP_PKG
-
-python setup.py $ADAPTIVEMD_INSTALLMETHOD
-
-python -c "import adaptivemd" || echo "something wrong with adaptivemd install"
-echo "export ADAPTIVEMD=${INSTALL_ADAPTIVEMD}adaptivemd/" >> ~/.bashrc
-
-###############################################################################
-#   Install AdaptiveMD Task Stack                                           #
-###############################################################################
-# TODO 2) here is the default task stack with versions for Titan
-#      - with [admdjobs] it is installed in same env as adaptivemd
-#        for streamlined adaptivemdworker usage
-#      - allow task stack to change versions 
-#        but... always install default task stack
-#               with specified or latest version
-#conda install openmm=$OPENMM_VERSION mdtraj pyemma 
 echo "Installing these Packages in AdaptiveMD Task Layer"
 echo $ADMD_TASK_PKG
 conda install $ADMD_TASK_PKG
 
 ###############################################################################
-#   Test AdaptiveMD Installation                                           #
+#   Test AdaptiveMD Installation                                              #
 ###############################################################################
 ## TODO 3) TEST AdaptiveMD
 #echo "Starting database for tests"
@@ -161,26 +154,30 @@ fi
 ###############################################################################
 #   Now creating the Data Directory                                           #
 ###############################################################################
-cd $INSTALL_ADMD_DATA
-mkdir $FOLDER_ADMD_DATA
-echo "'projects' and 'workers' subfolders will be created"
-echo "by AdaptiveMD inside this directory:"
-echo "  `pwd`/${FOLDER_ADMD_DATA}/"
-echo "export ADMD_DATA=${INSTALL_ADMD_DATA}${FOLDER_ADMD_DATA}/" >> ~/.bashrc
+if [ ! -d "$INSTALL_ADMD_DATA/$FOLDER_ADMD_DATA" ]; then
+  cd $INSTALL_ADMD_DATA
+  mkdir $FOLDER_ADMD_DATA
+  echo "'projects' and 'workers' subfolders will be created"
+  echo "by AdaptiveMD inside this directory:"
+  echo "  `pwd`/${FOLDER_ADMD_DATA}/"
+  echo "export ADMD_DATA=${INSTALL_ADMD_DATA}${FOLDER_ADMD_DATA}/" >> ~/.bashrc
+fi
 
 ###############################################################################
 #
 #   Now creating the Jobs Directory
 #
 ###############################################################################
-cd $INSTALL_ADMD_JOBS
-mkdir $FOLDER_ADMD_JOBS
-cd $FOLDER_ADMD_JOBS
-cp -r $CWD/jobs/ ./
-echo "export ADMD_JOBS=${INSTALL_ADMD_JOBS}${FOLDER_ADMD_JOBS}/jobs/" >> ~/.bashrc
-source ~/.bashrc
-cd $CWD
-echo "if no errors then AdaptiveMD & dependencies installed"
+if [ ! -d "$INSTALL_ADMD_JOBS/$FOLDER_ADMD_JOBS" ]; then
+  cd $INSTALL_ADMD_JOBS
+  mkdir $FOLDER_ADMD_JOBS
+  cd $FOLDER_ADMD_JOBS
+  cp -r $CWD/jobs/ ./
+  echo "export ADMD_JOBS=${INSTALL_ADMD_JOBS}${FOLDER_ADMD_JOBS}/jobs/" >> ~/.bashrc
+  source ~/.bashrc
+  cd $CWD
+  echo "if no errors then AdaptiveMD & dependencies installed"
+fi
 
 echo "\$ADAPTIVEMD added to environment:"
 echo $ADAPTIVEMD

@@ -57,7 +57,7 @@ if __name__ == '__main__':
         print("TIMER Project add event {0:.5f}", time.time())
         project.add_event(strategy_function(
             project, engine, args.n_traj,
-            args.n_ext, args.length,
+            args.n_ext, args.length[0],
             modeller=modeller,
             fixedlength=args.fixedlength,
             minlength=args.minlength,

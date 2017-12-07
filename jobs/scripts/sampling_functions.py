@@ -43,17 +43,45 @@ The requirements for a full-fledged sampling function:
 
 
 
-def random_restart(project, number=1):
+def long_trajectories(project, number=1, trajectories=None, uselast=True):
+
+    trajlist = list()
+
+    if trajectories is None:
+        # TODO could also use first, maybe use
+        #      argument "selection" to choose option
+        if uselast:
+            trajectories = list(reversed(list(
+                             project.trajectories.sorted(
+                             lambda t: t.created))))[:number]
+
+        else:
+            trajectories = [t for n,t in enumerate(project.trajectories) if n < number]
+
+    if len(trajectories) > 0:
+
+        print("Extending the trajectory selection")
+
+        for traj in trajectories:
+            trajlist.append(traj[len(traj)])
+
+    return trajlist
+
+
+def random_sampling(project, number=1):
+
     trajlist = list()
 
     if len(project.trajectories) > 0:
+
         print("Using random vector to select new frames")
+
         [trajlist.append(project.trajectories.pick().pick()) for _ in range(number)]
 
     return trajlist
 
 
-def xplor_microstates(project, number=1):
+def explore_microstates(project, number=1):
     '''
     This one is the same as project.new_ml_trajectory
     '''
