@@ -36,7 +36,7 @@ CONDA_VERSION=2
 # works fine.
 CONDA_PKG_VERSION=4.3.23
 
-#NUMPY_VERSION=1.13
+#NUMPY_VERSION=1.12
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
 PYMONGO_VERSION=3.5
@@ -131,6 +131,7 @@ fi
 echo "Installing these Packages in AdaptiveMD Task Layer"
 echo $ADMD_TASK_PKG
 conda install $ADMD_TASK_PKG
+conda install progress_reporter=1.3.1
 
 ###############################################################################
 #   Test AdaptiveMD Installation                                              #
