@@ -110,7 +110,7 @@ def argparser():
 
     parser.add_argument("--tica_dim",
         help="Number of TICA dimensions for clustering",
-        type=int, default=3)
+        type=int, default=5)
 
     parser.add_argument("--tica_stride",
         help="TICA stride in frames",

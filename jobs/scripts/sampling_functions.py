@@ -156,6 +156,94 @@ def explore_microstates(project, number=1):
     return trajlist
 
 
+def MinMaxScale(X, min=-1, max=1):
+  X_std = (X - X.min(axis=0)) / (X.max(axis=0) - X.min(axis=0))
+  X_scaled = X_std * (max - min) + min
+  return X_scaled
+
+def select_restart_state(values, select_type, microstates, nparallel=1, parameters=None):
+    if select_type == 'sto_inv_linear':
+        inv_values = 1.0 / values
+        p = inv_values / np.sum(inv_values)
+    return np.random.choice(microstates, p = p, size=nparallel)
+
+
+def explore_macrostates(project, number=1):
+  import pyemma
+  import msmtools
+  print("USING EXPLORE MACROSTATES STRATEGY")
+  data, c = get_model(project)
+  counts=np.sum(c, axis=1)
+  array_ok=msmtools.estimation.largest_connected_set(c)
+  msmtools.estimation.is_connected(c[array_ok,:][:,array_ok])
+  p=msmtools.estimation.transition_matrix(c[array_ok,:][:,array_ok])
+  current_MSM_obj = pyemma.msm.markov_model(p)
+  #num_eigenvecs_to_compute=5
+  current_eigenvecs = np.real(current_MSM_obj.eigenvectors_right())#num_eigenvecs_to_compute)
+  num_eigenvecs_to_compute=current_eigenvecs.shape[0]
+  current_timescales = current_MSM_obj.timescales()
+  current_eigenvals = np.real(current_MSM_obj.eigenvalues())
+  print(current_timescales)
+  projected_microstate_coords_scaled = MinMaxScale(current_eigenvecs[:,1:])
+  projected_microstate_coords_scaled *= np.sqrt(current_timescales[:num_eigenvecs_to_compute-1] / current_timescales[0]).reshape(1, num_eigenvecs_to_compute-1)
+  kin_cont = np.cumsum(-1./np.log(np.abs(current_eigenvals[1:])))/2.
+  frac_kin_content=0.9
+  cut = kin_cont[kin_cont < kin_cont.max()*frac_kin_content]
+  num_macrostates = max(cut.shape[0],1)
+  print(num_macrostates)
+  num_kmeans_iter=10
+  kmeans_obj = pyemma.coordinates.cluster_kmeans(data=projected_microstate_coords_scaled, k=num_macrostates, max_iter=num_kmeans_iter)
+  macrostate_assignment_of_visited_microstates = kmeans_obj.assign()[0]             
+  macrostate_assignment_of_visited_microstates
+  corrected=np.zeros(c.shape[0])
+  corrected[array_ok]=macrostate_assignment_of_visited_microstates
+  not_connected_macrostates=[i for i in range(c.shape[0]) if i not in array_ok]
+  for n,i in enumerate(not_connected_macrostates):
+    #print(i)
+    corrected[i]=n+num_macrostates
+  print(corrected)
+  counts=np.sum(c,axis=0)
+  #[array_ok,:][:,array_ok]
+  macrostate_counts = np.array([np.sum(counts[corrected == macrostate_label]) for macrostate_label in range(num_macrostates+len(not_connected_macrostates))])
+  selected_macrostate = select_restart_state(macrostate_counts[macrostate_counts > 0], 'sto_inv_linear', np.arange(num_macrostates+len(not_connected_macrostates))[macrostate_counts > 0], nparallel=number)
+  restart_state=np.empty((0))
+  for i in range(number):
+    selected_macrostate_mask = (corrected == selected_macrostate[i])
+    counts_in_selected_macrostate = counts[selected_macrostate_mask]
+    add_microstate=select_restart_state(counts_in_selected_macrostate, 'sto_inv_linear', np.arange(c.shape[0])[selected_macrostate_mask], nparallel=1)
+    print(selected_macrostate[i], add_microstate)
+    restart_state=np.append(restart_state,add_microstate)
+  state_picks=restart_state.astype('int')
+  n_states = len(c)
+  modeller = data['input']['modeller']
+  outtype = modeller.outtype
+  # the stride of the analyzed trajectories
+  used_stride = modeller.engine.types[outtype].stride
+  # all stride for full trajectories
+  full_strides = modeller.engine.full_strides
+  frame_state_list = {n: [] for n in range(n_states)}
+  for nn, dt in enumerate(data['clustering']['dtrajs']):
+      for mm, state in enumerate(dt):
+          # if there is a full traj with existing frame, use it
+          if any([(mm * used_stride) % stride == 0 for stride in full_strides]):
+              frame_state_list[state].append((nn, mm * used_stride))
+  # remove states that do not have at least one frame
+  filelist = data['input']['trajectories']
+  print("FILELIST: ", len(filelist), "entries, with", len(project.trajectories), "trajectories actually stored")
+  for f in filelist:
+          print(f)
+  picks = list()
+  for state in state_picks:
+    pick = frame_state_list[state][np.random.randint(0,
+            len(frame_state_list[state]))]
+    print("state, probability, pick: ", state, pick)
+    picks.append(pick)
+  trajlist = list()
+  [trajlist.append(filelist[pick[0]][pick[1]]) for pick in picks]
+  print("Trajectory picks list:\n", trajlist)
+  return trajlist
+
+
 # TODO make get_model able to search the model data with a
 #      list of keys to query data from 'model.data'
 # TODO model data check feature to check something about model

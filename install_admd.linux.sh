@@ -36,13 +36,13 @@ CONDA_VERSION=2
 # works fine.
 CONDA_PKG_VERSION=4.3.23
 
-NUMPY_VERSION=1.12
+#NUMPY_VERSION=1.12
 OPENMM_VERSION=7.0
 MONGODB_VERSION=3.3.0
 PYMONGO_VERSION=3.5
 
 # Application Package dependencies 
-ADMD_APP_PKG="pyyaml six ujson numpy=$NUMPY_VERSION"
+ADMD_APP_PKG="pyyaml six ujson numpy"
 # Task Package dependencies 
 ADMD_TASK_PKG="openmm=$OPENMM_VERSION mdtraj pyemma"
 
@@ -51,7 +51,7 @@ ADMD_TASK_PKG="openmm=$OPENMM_VERSION mdtraj pyemma"
 # - inside an env, conda won't update so its ok
 if [[ ! -z "$CONDA_ENV_NAME" ]]; then
   ADMD_APP_PKG+=" conda=$CONDA_PKG_VERSION"
-  ADMD_TASK_PKG+=" conda=$CONDA_PKG_VERSION"
+  #ADMD_TASK_PKG+=" conda=$CONDA_PKG_VERSION"
 fi
 
 ###############################################################################
@@ -131,6 +131,7 @@ fi
 echo "Installing these Packages in AdaptiveMD Task Layer"
 echo $ADMD_TASK_PKG
 conda install $ADMD_TASK_PKG
+conda install progress_reporter=1.3.1
 
 ###############################################################################
 #   Test AdaptiveMD Installation                                              #
