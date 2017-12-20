@@ -5,7 +5,17 @@ from __future__ import print_function
 import numpy as np
 
 
+# TODO update this documentation...
 '''
+Available Sampling Functions:
+
+ long_trajectories
+ random_sampling_trajectories
+ random_sampling_microstates
+ uniform_sampling_microstates
+ explore_microstates
+ explore_macrostates
+
 This file contains functions that sample from trajectory data
 using a model. One sampling function is special "randomm_restart",
 this one does not use a model and provides a random selection
@@ -44,7 +54,15 @@ The requirements for a full-fledged sampling function:
 
 
 def long_trajectories(project, number=1, trajectories=None, uselast=True):
-
+    '''
+    Continually grow the same trajectories to longer total
+    length.
+    '''
+    #Note -- This currently does not make TrajectoryExtensionTasks
+    #        which would be the expected output...
+    #TODO -- have this function return or indicate to interface 
+    #        that extension tasks should be made, and use the
+    #        restart file from previous stopping point.
     trajlist = list()
 
     if trajectories is None:
@@ -68,15 +86,69 @@ def long_trajectories(project, number=1, trajectories=None, uselast=True):
     return trajlist
 
 
-def random_sampling(project, number=1):
+def random_sampling_trajectories(project, number=1):
+    '''
+    Randomly sample frames from the body of trajectory data.
+    Low energy regions will be heavily sampled, since most
+    simulation time is presumably in these regions.
+    '''
 
     trajlist = list()
 
     if len(project.trajectories) > 0:
-
         print("Using random vector to select new frames")
-
         [trajlist.append(project.trajectories.pick().pick()) for _ in range(number)]
+
+    return trajlist
+
+def uniform_sampling_microstates(project, number=1):
+    pass
+
+
+def random_sampling_microstates(project, number=1):
+    '''
+    Randomly sample frames across microstates from the
+    clustered trajectory data. This should result in a
+    roughly uniform exploration of the already simulated
+    space..
+    '''
+
+    trajlist = list()
+    data, c = get_model(project)
+
+    filelist = data['input']['trajectories']
+    frame_state_list = list_microstate_frames(data)
+    states = frame_state_list.keys()
+    # remove states that do not have at least one frame
+    # can't iterate over states while also changing states
+    # so using len(c), states is same range
+    for state in states:
+        if len(frame_state_list[state]) == 0:
+            states.remove(state)
+
+    nstates = len(states)
+    w = 1./nstates
+    q = [w if state in states else 0 for state in frame_state_list]
+    trajlist = get_picks(frame_state_list, filelist, number, q)
+
+    return trajlist
+
+
+def get_picks(frame_state_list, filelist, npicks, pvec=None):
+
+    print("Using probability vector for states q:\n", pvec)
+    nstates = len(frame_state_list)
+    state_picks = np.random.choice(np.arange(nstates), size=npicks, p=pvec)
+    print("Selecting from these states:\n", state_picks)
+
+    trajlist = list()
+    picks = list()
+    for state in state_picks:
+        pick = frame_state_list[state][np.random.randint(0,
+                len(frame_state_list[state]))]
+        picks.append(pick)
+
+    [trajlist.append(filelist[pick[0]][pick[1]]) for pick in picks]
 
     return trajlist
 
@@ -87,6 +159,7 @@ def explore_microstates(project, number=1):
     '''
 
     data, c = get_model(project)
+    filelist = data['input']['trajectories']
     # TODO verify axis 0 is the columns
     # TODO dont' do above todo, but ...
     #      do ceiling(average(rowcount, colcount)) as weight
@@ -94,66 +167,54 @@ def explore_microstates(project, number=1):
     #q = 1/np.sum(c, axis=0)
     trajlist = list()
 
+    frame_state_list = list_microstate_frames(data)
+    # remove states that do not have at least one frame
+    for k in range(len(q)):
+        if len(frame_state_list[k]) == 0:
+            q[k] = 0.0
+    # and normalize the remaining ones
+    q /= np.sum(q)
+    trajlist = get_picks(frame_state_list, filelist, number, q)
+
+    print("Trajectory picks list:\n", trajlist)
+    return trajlist
+
+
+def list_microstate_frames(data):
+    '''
+    This function returns a dict with items that contain the frames
+    belonging to each microstate. While the trajectories analyzed for
+    the data might have a more frequent stride than the all-atoms
+    trajectory, only the all-atoms trajectory can be used for sampling
+    since the restart frame must contain the whole system. So the
+    returned lists only contain frames that are saved in the all-atoms
+    trajectory data.
+
+    keys :: int
+    microstate index
+
+    values :: list
+    frames belonging to this microstate
+
+    '''
     # not a good method to get n_states
     # populated clusters in
     # data['msm']['C'] may be less than k
     #n_states = data['clustering']['k']
-    n_states = len(c)
-
+    n_states = len(data['msm']['C'])
     modeller = data['input']['modeller']
-
     outtype = modeller.outtype
-
     # the stride of the analyzed trajectories
     used_stride = modeller.engine.types[outtype].stride
-
     # all stride for full trajectories
     full_strides = modeller.engine.full_strides
-
     frame_state_list = {n: [] for n in range(n_states)}
     for nn, dt in enumerate(data['clustering']['dtrajs']):
         for mm, state in enumerate(dt):
             # if there is a full traj with existing frame, use it
             if any([(mm * used_stride) % stride == 0 for stride in full_strides]):
                 frame_state_list[state].append((nn, mm * used_stride))
-
-    # remove states that do not have at least one frame
-    for k in range(n_states):
-        if len(frame_state_list[k]) == 0:
-            q[k] = 0.0
-
-    # and normalize the remaining ones
-    q /= np.sum(q)
-
-    state_picks = np.random.choice(np.arange(len(q)), size=number, p=q)
-
-    print("Using probability vector for states q:\n", q)
-
-    filelist = data['input']['trajectories']
-
-    print("FILELIST: ", len(filelist), "entries, with",
-          len(project.trajectories), "trajectories actually stored")
-
-    for f in filelist:
-        print(f)
-
-    picks = list()
-    for state in state_picks:
-        pick = frame_state_list[state][np.random.randint(0,
-                len(frame_state_list[state]))]
-        print("state, probability, pick: ", state, q[state], pick)
-        picks.append(pick)
-
-    ###picks = [
-    ###    frame_state_list[state][np.random.randint(0,
-    ###            len(frame_state_list[state]))]
-    ###    for state in state_picks
-    ###    ]
-
-    [trajlist.append(filelist[pick[0]][pick[1]]) for pick in picks]
-
-    print("Trajectory picks list:\n", trajlist)
-    return trajlist
+    return frame_state_list
 
 
 def MinMaxScale(X, min=-1, max=1):
@@ -259,6 +320,8 @@ def get_model(project):
         # TODO verify axis 0 is the columns
         s =  np.sum(c, axis=1)
         #s =  np.sum(c, axis=0)
+        assert len(c.shape) == 2
+        assert c.shape[0] == c.shape[1]
         if 0 not in s:
             return data, c
 
